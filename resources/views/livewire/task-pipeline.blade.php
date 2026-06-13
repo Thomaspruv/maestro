@@ -12,47 +12,13 @@
     <div class="mb-4 flex items-center justify-between gap-2">
         <div>
             <h2 class="text-xs font-semibold text-text-primary">Pipeline</h2>
-            @if($totalSteps > 0)
-                <p class="mt-0.5 text-[10px] text-text-muted">{{ $completedCount }}/{{ $totalSteps }} étapes terminées</p>
-            @endif
         </div>
         @if($task->status->value === 'backlog')
             <x-maestro.button wire:click="startPipeline" class="text-[10px]">Démarrer</x-maestro.button>
         @endif
     </div>
 
-    @if($pendingGate && ! $runningRun)
-        <div class="pipeline-activity pipeline-activity-gate mb-4 rounded-lg border border-warning/30 bg-warning-muted/20 px-3 py-2.5">
-            <p class="text-[11px] font-semibold text-warning">Validation requise</p>
-            <p class="mt-1 text-[10px] text-text-secondary">
-                Gate « {{ $pendingGate->gate_type->value }} » — approuvez ou rejetez pour continuer la pipeline.
-            </p>
-        </div>
-    @elseif($runningRun)
-        <div class="pipeline-activity mb-4 rounded-lg border border-primary/30 bg-primary-muted/20 px-3 py-2.5">
-            <div class="flex items-start gap-2">
-                <span class="pipeline-spinner mt-0.5 shrink-0" aria-hidden="true"></span>
-                <div class="min-w-0">
-                    <p class="text-[11px] font-semibold text-primary-light">
-                        {{ $activityLabel ?? 'Agent' }} en cours
-                    </p>
-                    <p class="mt-0.5 text-[10px] text-text-secondary">{{ $activityMessage }}</p>
-                    @if($runningRun->started_at)
-                        <p class="mt-1 text-[10px] text-text-muted">
-                            Démarré {{ $runningRun->started_at->diffForHumans() }}
-                            @if($runningRun->attempt > 1)
-                                · tentative {{ $runningRun->attempt }}/3
-                            @endif
-                        </p>
-                    @endif
-                </div>
-            </div>
-        </div>
-    @elseif($task->status->value === 'in_progress')
-        <div class="pipeline-activity mb-4 rounded-lg border border-bg-overlay bg-bg-surface/80 px-3 py-2.5">
-            <p class="text-[10px] text-text-muted">Pipeline en cours — en attente du prochain agent…</p>
-        </div>
-    @endif
+    <x-maestro.pipeline-health-banner :health="$health" />
 
     @if($shouldPoll)
         <p class="mb-3 text-[10px] text-text-muted">Actualisation automatique toutes les 5 s.</p>
@@ -63,14 +29,15 @@
             @php
                 $run = $runsByAgent[$agent] ?? null;
                 $label = $agentLabels[$agent] ?? ['emoji' => '🤖', 'name' => $agent];
-                $isActive = $currentAgent === $agent;
+                $isCurrent = $currentAgent === $agent;
                 $pillStatus = match ($run?->status->value ?? null) {
+                    'pending' => 'running',
                     'running' => 'running',
                     'completed' => 'done',
                     'waiting_gate' => 'gate',
                     'failed' => 'error',
                     'skipped' => 'done',
-                    default => $isActive ? 'running' : 'waiting',
+                    default => $isCurrent ? 'running' : 'waiting',
                 };
                 $duration = $run ? \App\Support\PipelineActivity::formatDuration($run) : null;
             @endphp
@@ -81,8 +48,9 @@
                     'relative flex items-start gap-3 rounded-lg border px-3 py-2 transition-colors',
                     'cursor-pointer border-primary bg-primary-muted/30' => $run && $selectedRunId === $run->id,
                     'cursor-pointer border-bg-overlay hover:border-primary/30' => $run && $selectedRunId !== $run->id,
-                    'border-bg-overlay opacity-60' => ! $run,
-                    'ring-1 ring-primary/40' => $isActive && $run,
+                    'border-bg-overlay opacity-60' => ! $run && ! $isCurrent,
+                    'border-primary/40 bg-primary-muted/10 ring-1 ring-primary/30' => $isCurrent && ! $run,
+                    'ring-1 ring-primary/40' => $isCurrent && $run,
                 ])
             >
                 @if($index < count($pipeline) - 1)
@@ -91,7 +59,7 @@
 
                 <div @class([
                     'flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-bg-elevated text-sm',
-                    'pipeline-agent-pulse' => $run?->status->value === 'running',
+                    'pipeline-agent-pulse' => in_array($run?->status->value ?? '', ['pending', 'running'], true) || ($isCurrent && ! $run),
                 ])>
                     {{ $label['emoji'] }}
                 </div>
@@ -102,6 +70,8 @@
                         <x-maestro.pipeline-pill :status="$pillStatus">
                             @if($run)
                                 <x-maestro.badge kind="agent_status" :value="$run->status" />
+                            @elseif($isCurrent)
+                                Prochain
                             @else
                                 En attente
                             @endif
@@ -123,6 +93,8 @@
                                 <p class="text-danger">{{ Str::limit($run->error_message, 120) }}</p>
                             @endif
                         </div>
+                    @elseif($isCurrent)
+                        <p class="mt-1 text-[10px] text-primary-light">Étape courante</p>
                     @endif
                 </div>
             </div>
@@ -132,7 +104,7 @@
             @endphp
             @if($agentGate)
                 <div class="maestro-gate-block mx-3 my-1">
-                    <p class="text-[10px] font-semibold text-warning">🚧 Gate en attente — {{ $agentGate->gate_type->value }}</p>
+                    <p class="text-[10px] font-semibold text-warning">Gate en attente — {{ $agentGate->gate_type->value }}</p>
                 </div>
             @endif
         @endforeach

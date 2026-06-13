@@ -80,7 +80,7 @@ class TaskPipeline extends Component
     private function syncSelectionToActiveAgent(): void
     {
         $active = PipelineActivity::runningRun($this->task)
-            ?? $this->task->agentRuns->first(fn ($run) => $run->status === AgentRunStatus::Pending);
+            ?? PipelineActivity::pendingRun($this->task);
 
         if ($active && $this->selectedRunId !== $active->id) {
             $this->selectedRunId = $active->id;

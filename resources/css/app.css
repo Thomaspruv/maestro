@@ -206,6 +206,38 @@
         animation: pipeline-fade-in 0.3s ease-out;
     }
 
+    .pipeline-health-primary {
+        @apply border-primary/30 bg-primary-muted/20 text-primary-light;
+    }
+
+    .pipeline-health-danger {
+        @apply border-danger/40 bg-danger/10 text-danger;
+    }
+
+    .pipeline-health-warning {
+        @apply border-warning/40 bg-warning-muted/20 text-warning;
+    }
+
+    .pipeline-health-success {
+        @apply border-success/30 bg-success/10 text-success;
+    }
+
+    .pipeline-health-muted {
+        @apply border-bg-overlay bg-bg-surface/80 text-text-muted;
+    }
+
+    .pipeline-health-progress {
+        @apply bg-primary-light;
+    }
+
+    .pipeline-health-danger .pipeline-health-progress {
+        @apply bg-danger;
+    }
+
+    .pipeline-health-success .pipeline-health-progress {
+        @apply bg-success;
+    }
+
     .maestro-empty-state {
         @apply flex flex-col items-center justify-center rounded-lg border border-dashed border-bg-overlay py-12 text-center text-text-muted;
     }

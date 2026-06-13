@@ -14,6 +14,7 @@ use App\Models\User;
 use App\Models\UserAgent;
 use App\Services\OrchestratorService;
 use Illuminate\Foundation\Testing\RefreshDatabase;
+use Illuminate\Support\Facades\Queue;
 use Tests\TestCase;
 
 class OrchestratorServiceTest extends TestCase
@@ -104,6 +105,23 @@ class OrchestratorServiceTest extends TestCase
         $next = $orchestrator->resolveNextAgent($task->fresh());
 
         $this->assertSame('tech_lead', $next);
+    }
+
+    public function test_advance_creates_pending_agent_run_before_job(): void
+    {
+        Queue::fake();
+
+        $task = $this->makeTask(TaskType::Feature, TaskMode::FullAuto);
+
+        app(OrchestratorService::class)->advance($task->fresh());
+
+        $this->assertDatabaseHas('agent_runs', [
+            'task_id' => $task->id,
+            'agent_type' => 'pm',
+            'status' => AgentRunStatus::Pending->value,
+        ]);
+
+        $this->assertSame('pm', $task->fresh()->current_agent);
     }
 
     public function test_custom_agent_in_pipeline_resolves_without_enum_error(): void

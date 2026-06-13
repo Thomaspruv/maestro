@@ -28,17 +28,23 @@
             </div>
         </div>
 
-        @if($run->status->value === 'running')
+        @if(in_array($run->status->value, ['running', 'pending'], true))
             <div class="border-b border-primary/20 bg-primary-muted/15 px-4 py-3">
                 <div class="flex items-start gap-3">
                     <span class="pipeline-spinner shrink-0" aria-hidden="true"></span>
                     <div>
-                        <p class="text-xs font-semibold text-primary-light">Agent en cours d'exécution</p>
+                        <p class="text-xs font-semibold text-primary-light">
+                            {{ $run->status->value === 'pending' ? 'Agent en file d\'attente' : 'Agent en cours d\'exécution' }}
+                        </p>
                         <p class="mt-1 text-[11px] text-text-secondary">{{ $activityMessage }}</p>
                         @if($run->started_at)
                             <p class="mt-2 text-[10px] text-text-muted">
                                 Démarré à {{ $run->started_at->format('H:i:s') }}
                                 ({{ $run->started_at->diffForHumans() }})
+                            </p>
+                        @elseif($run->status->value === 'pending')
+                            <p class="mt-2 text-[10px] text-text-muted">
+                                Job dispatché — démarrage imminent si Horizon est actif.
                             </p>
                         @endif
                         <p class="mt-2 text-[10px] text-text-muted">
@@ -62,7 +68,7 @@
                 <div class="mt-3 flex justify-end">
                     <x-maestro.button wire:click="saveOutput">Enregistrer</x-maestro.button>
                 </div>
-            @elseif($run->status->value === 'running')
+            @elseif($run->status->value === 'running' || $run->status->value === 'pending')
                 <div class="flex h-full min-h-[200px] flex-col items-center justify-center rounded-lg border border-dashed border-bg-overlay bg-bg-surface/30 px-6 text-center">
                     <span class="pipeline-spinner mb-3 h-6 w-6" aria-hidden="true"></span>
                     <p class="text-xs text-text-muted">En attente de la réponse de l'agent…</p>

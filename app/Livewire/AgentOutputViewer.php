@@ -61,6 +61,12 @@ class AgentOutputViewer extends Component
             $this->editMode = false;
         }
 
+        $pending = PipelineActivity::pendingRun($this->task);
+        if ($pending && ! PipelineActivity::runningRun($this->task) && $this->selectedRunId !== $pending->id) {
+            $this->selectedRunId = $pending->id;
+            $this->editMode = false;
+        }
+
         $this->loadOutput();
     }
 

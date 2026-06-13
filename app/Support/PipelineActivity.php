@@ -32,12 +32,12 @@ class PipelineActivity
 
         if ($task->relationLoaded('agentRuns')) {
             return $task->agentRuns->contains(
-                fn (AgentRun $run) => $run->status === AgentRunStatus::Running
+                fn (AgentRun $run) => in_array($run->status, [AgentRunStatus::Running, AgentRunStatus::Pending], true)
             );
         }
 
         return $task->agentRuns()
-            ->where('status', AgentRunStatus::Running)
+            ->whereIn('status', [AgentRunStatus::Running, AgentRunStatus::Pending])
             ->exists();
     }
 
@@ -49,6 +49,17 @@ class PipelineActivity
 
         return $task->agentRuns->first(
             fn (AgentRun $run) => $run->status === AgentRunStatus::Running
+        );
+    }
+
+    public static function pendingRun(Task $task): ?AgentRun
+    {
+        if (! $task->relationLoaded('agentRuns')) {
+            $task->load('agentRuns');
+        }
+
+        return $task->agentRuns->first(
+            fn (AgentRun $run) => $run->status === AgentRunStatus::Pending
         );
     }
 

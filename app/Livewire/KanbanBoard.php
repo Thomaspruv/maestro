@@ -6,6 +6,7 @@ use App\Enums\TaskStatus;
 use App\Models\Project;
 use App\Models\Task;
 use App\Services\OrchestratorService;
+use App\Services\PipelineHealthService;
 use App\Support\PipelineActivity;
 use Livewire\Attributes\On;
 use Livewire\Component;
@@ -131,7 +132,11 @@ class KanbanBoard extends Component
                 ->find($this->openTaskId)
             : null;
 
-        $needsQueueWorker = ! in_array(config('queue.default'), ['sync'], true);
+        $healthService = app(PipelineHealthService::class);
+        $workerBanner = $healthService->kanbanWorkerBanner($this->project);
+        $taskHealthMap = $tasks->mapWithKeys(
+            fn (Task $task) => [$task->id => $healthService->forTask($task)]
+        );
 
         return view('livewire.kanban-board', [
             'columns' => $columns,
@@ -139,7 +144,8 @@ class KanbanBoard extends Component
             'taskTypes' => \App\Enums\TaskType::cases(),
             'priorities' => \App\Enums\TaskPriority::cases(),
             'openTask' => $openTask,
-            'needsQueueWorker' => $needsQueueWorker,
+            'workerBanner' => $workerBanner,
+            'taskHealthMap' => $taskHealthMap,
             'shouldPoll' => $this->polling || ($openTask && PipelineActivity::shouldPoll($openTask)),
         ]);
     }

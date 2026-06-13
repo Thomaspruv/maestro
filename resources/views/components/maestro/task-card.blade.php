@@ -1,6 +1,7 @@
-@props(['task', 'project' => null])
+@props(['task', 'project' => null, 'health' => null])
 
 @php
+    use App\Enums\PipelineHealthState;
     use App\Enums\TaskStatus;
     use App\Support\PipelineActivity;
 
@@ -8,10 +9,12 @@
     $agentLabels = config('maestro.agent_labels', []);
     $currentAgent = PipelineActivity::currentAgentType($task);
     $runningRun = PipelineActivity::runningRun($task);
+    $pendingRun = PipelineActivity::pendingRun($task);
     $pendingGate = $task->relationLoaded('gates')
         ? $task->gates->where('status', 'pending')->first()
         : null;
     $agentEmoji = $currentAgent ? ($agentLabels[$currentAgent]['emoji'] ?? '🤖') : null;
+    $healthState = $health['state'] ?? null;
 @endphp
 
 <div {{ $attributes->merge(['class' => 'maestro-card p-3']) }}>
@@ -29,20 +32,29 @@
         <x-maestro.badge kind="mode" :value="$task->mode" />
     </div>
 
-    @if($task->status === TaskStatus::InProgress)
-        <div class="mb-2 rounded-md border border-primary/25 bg-primary-muted/15 px-2 py-1.5">
-            @if($runningRun && $currentAgent)
+    @if($health && $task->status === TaskStatus::InProgress)
+        @php
+            $stripClass = match ($health['tone'] ?? 'muted') {
+                'danger' => 'border-danger/30 bg-danger/10 text-danger',
+                'warning' => 'border-warning/30 bg-warning-muted/20 text-warning',
+                'success' => 'border-success/30 bg-success/10 text-success',
+                default => 'border-primary/25 bg-primary-muted/15 text-primary-light',
+            };
+        @endphp
+        <div class="mb-2 rounded-md border px-2 py-1.5 {{ $stripClass }}">
+            @if($healthState === PipelineHealthState::BlockedWorker)
+                <p class="text-[10px] font-semibold">Bloquée — démarrer Horizon</p>
+            @elseif($runningRun && $currentAgent)
                 <div class="flex items-start gap-1.5">
                     <span class="pipeline-spinner mt-0.5 h-3 w-3 shrink-0" aria-hidden="true"></span>
-                    <p class="text-[10px] leading-snug text-primary-light">
-                        {{ $agentLabels[$currentAgent]['name'] ?? $currentAgent }}
-                        — {{ PipelineActivity::agentMessage($currentAgent) }}
-                    </p>
+                    <p class="text-[10px] leading-snug">{{ $health['title'] }}</p>
                 </div>
+            @elseif($pendingRun)
+                <p class="text-[10px] leading-snug">{{ $health['title'] }} — en file</p>
             @elseif($pendingGate)
-                <p class="text-[10px] font-semibold text-warning">🚧 Validation requise — cliquez pour approuver</p>
+                <p class="text-[10px] font-semibold">Validation requise</p>
             @else
-                <p class="text-[10px] text-text-muted">⏳ Pipeline en cours…</p>
+                <p class="text-[10px] leading-snug">{{ $health['title'] }}</p>
             @endif
         </div>
     @endif
@@ -53,7 +65,7 @@
                 @php
                     $label = config("maestro.agent_labels.{$run->agent_type}.emoji", '🤖');
                     $pillStatus = match ($run->status->value) {
-                        'running' => 'running',
+                        'pending', 'running' => 'running',
                         'completed' => 'done',
                         'waiting_gate' => 'gate',
                         'failed' => 'error',

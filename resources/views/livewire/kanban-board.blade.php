@@ -1,13 +1,21 @@
 <div @if($shouldPoll) wire:poll.5s @endif>
-    @if($needsQueueWorker)
-        <div class="mb-4 rounded-lg border border-warning/40 bg-warning-muted/20 px-4 py-3">
-            <p class="text-xs font-semibold text-warning">Worker queue requis</p>
-            <p class="mt-1 text-[11px] leading-relaxed text-text-secondary">
-                La pipeline s'exécute en arrière-plan. Lancez
-                <code class="rounded bg-bg-surface px-1 py-0.5 font-mono text-[10px]">php artisan queue:listen</code>
-                (ou <code class="rounded bg-bg-surface px-1 py-0.5 font-mono text-[10px]">composer dev</code>)
-                sinon rien ne se passera après « Lancer la pipeline ».
-            </p>
+    @if($workerBanner['show'] ?? false)
+        @php
+            $bannerClass = match ($workerBanner['tone']) {
+                'danger' => 'pipeline-health-danger',
+                'warning' => 'pipeline-health-warning',
+                'success' => 'pipeline-health-success',
+                default => 'pipeline-health-muted',
+            };
+        @endphp
+        <div class="mb-4 rounded-lg border px-4 py-3 {{ $bannerClass }}">
+            <p class="text-xs font-semibold">{{ $workerBanner['title'] }}</p>
+            <p class="mt-1 text-[11px] leading-relaxed opacity-90">{{ $workerBanner['message'] }}</p>
+            @if($workerBanner['tone'] === 'danger')
+                <a href="{{ url('/horizon') }}" target="_blank" class="mt-2 inline-block text-[10px] font-semibold underline">
+                    Ouvrir Horizon →
+                </a>
+            @endif
         </div>
     @endif
 
@@ -75,6 +83,7 @@
                             <x-maestro.task-card
                                 :task="$task"
                                 :project="$project"
+                                :health="$taskHealthMap[$task->id] ?? null"
                                 wire:click="openTask({{ $task->id }})"
                                 class="cursor-pointer transition-colors hover:border-primary/40"
                             />
