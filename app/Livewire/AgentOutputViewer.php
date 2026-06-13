@@ -2,10 +2,11 @@
 
 namespace App\Livewire;
 
+use App\Enums\GateStatus;
 use App\Models\AgentRun;
 use App\Models\Gate;
 use App\Models\Task;
-use App\Services\OrchestratorService;
+use App\Services\GateReviewService;
 use App\Services\ProjectAgentSyncService;
 use App\Support\PipelineActivity;
 use Livewire\Attributes\On;
@@ -22,6 +23,10 @@ class AgentOutputViewer extends Component
     public string $editedOutput = '';
 
     public string $gateFeedback = '';
+
+    public ?string $gateNotice = null;
+
+    public ?string $gateNoticeTone = null;
 
     public function mount(Task $task, ?int $selectedRunId = null): void
     {
@@ -93,61 +98,42 @@ class AgentOutputViewer extends Component
         session()->flash('success', 'Output enregistré.');
     }
 
-    public function approveGate(int $gateId): void
+    public function approveGate(int $gateId, GateReviewService $gateReview): void
     {
         $gate = Gate::where('task_id', $this->task->id)->findOrFail($gateId);
         $this->authorize('update', $gate);
 
-        $gate->update([
-            'status' => \App\Enums\GateStatus::Approved,
-            'reviewed_at' => now(),
-        ]);
-
-        if ($this->editedOutput && $gate->agentRun) {
-            $gate->agentRun->update(['edited_output' => $this->editedOutput]);
-        }
-
-        app(OrchestratorService::class)->advance($this->task->fresh());
+        $gateReview->approve($gate, $this->editedOutput !== '' ? $this->editedOutput : null);
+        $this->editMode = false;
+        $this->gateNotice = 'Gate validée — l\'agent suivant démarre.';
+        $this->gateNoticeTone = 'success';
         $this->refreshViewer();
+        $this->dispatch('gate-reviewed');
     }
 
-    public function rejectGate(int $gateId): void
+    public function rejectGate(int $gateId, GateReviewService $gateReview): void
     {
         $this->validate(['gateFeedback' => ['required', 'string', 'max:5000']]);
 
         $gate = Gate::where('task_id', $this->task->id)->findOrFail($gateId);
         $this->authorize('update', $gate);
 
-        $maxRegenerations = (int) config('maestro.max_gate_regenerations', 2);
-
-        if ($gate->regeneration_count >= $maxRegenerations) {
-            $gate->update(['status' => \App\Enums\GateStatus::Rejected]);
-            $this->task->update(['status' => \App\Enums\TaskStatus::Failed]);
-
-            return;
-        }
-
-        $gate->update([
-            'status' => \App\Enums\GateStatus::Pending,
-            'feedback' => $this->gateFeedback,
-            'regeneration_count' => $gate->regeneration_count + 1,
-        ]);
-
-        \App\Jobs\RunAgentJob::dispatch(
-            $this->task,
-            $gate->agentRun->agent_type,
-            feedback: $this->gateFeedback,
-        );
+        $gateReview->reject($gate, $this->gateFeedback);
 
         $this->gateFeedback = '';
+        $this->gateNotice = 'Feedback envoyé — l\'agent régénère sa réponse.';
+        $this->gateNoticeTone = 'warning';
         $this->refreshViewer();
+        $this->dispatch('gate-reviewed');
     }
 
     public function render()
     {
         $run = $this->getSelectedRun();
         $pendingGate = $run
-            ? $this->task->gates->where('agent_run_id', $run->id)->where('status', 'pending')->first()
+            ? $this->task->gates->first(
+                fn ($gate) => $gate->agent_run_id === $run->id && $gate->status === GateStatus::Pending
+            )
             : null;
 
         $labelService = app(ProjectAgentSyncService::class);

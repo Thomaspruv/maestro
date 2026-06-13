@@ -20,7 +20,7 @@ class OrchestratorService
 {
     private const PARALLEL_GROUP = ['ux', 'tech_lead'];
 
-    public function advance(Task $task): void
+    public function advance(Task $task, bool $afterGateApproval = false): void
     {
         $task->loadMissing('project.agents');
 
@@ -36,7 +36,11 @@ class OrchestratorService
             return;
         }
 
-        if ($this->requiresGate($task, $nextAgent)) {
+        if (! $afterGateApproval && $this->requiresGate($task, $nextAgent)) {
+            if ($task->gates()->where('status', GateStatus::Pending)->exists()) {
+                return;
+            }
+
             $lastRun = $task->agentRuns()->latest()->first();
 
             if ($lastRun) {

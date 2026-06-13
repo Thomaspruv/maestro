@@ -41,6 +41,7 @@ class ParallelAgentGroupJob implements ShouldQueue
 
         Bus::batch($jobs)
             ->name("task-{$taskId}-parallel")
+            ->onQueue('agents')
             ->allowFailures(false)
             ->finally(function () use ($orchestrator, $taskId): void {
                 $task = Task::query()->findOrFail($taskId);

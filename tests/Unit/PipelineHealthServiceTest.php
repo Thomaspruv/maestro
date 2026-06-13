@@ -6,16 +6,17 @@ use App\Enums\AgentRunStatus;
 use App\Enums\PipelineHealthState;
 use App\Enums\TaskStatus;
 use App\Models\AgentRun;
-use App\Models\Project;
 use App\Models\Task;
 use App\Services\PipelineHealthService;
 use Illuminate\Foundation\Testing\RefreshDatabase;
+use Illuminate\Support\Facades\DB;
 use PHPUnit\Framework\Attributes\Test;
 use Tests\TestCase;
 
 class PipelineHealthServiceTest extends TestCase
 {
     use RefreshDatabase;
+
     #[Test]
     public function not_started_for_backlog_task(): void
     {
@@ -83,5 +84,36 @@ class PipelineHealthServiceTest extends TestCase
         $health = app(PipelineHealthService::class)->forTask($task->fresh(['agentRuns', 'gates']), ['pm']);
 
         $this->assertNotSame(PipelineHealthState::BlockedWorker, $health['state']);
+    }
+
+    #[Test]
+    public function database_queue_with_pending_jobs_reports_blocked_worker(): void
+    {
+        config(['queue.default' => 'database']);
+
+        $task = Task::factory()->create(['status' => TaskStatus::InProgress, 'current_agent' => 'ux']);
+        AgentRun::factory()->create([
+            'task_id' => $task->id,
+            'agent_type' => 'ux',
+            'status' => AgentRunStatus::Pending,
+            'created_at' => now()->subMinute(),
+        ]);
+
+        DB::table('jobs')->insert([
+            'queue' => 'agents',
+            'payload' => json_encode(['job' => 'test', 'data' => []]),
+            'attempts' => 0,
+            'reserved_at' => null,
+            'available_at' => now()->timestamp,
+            'created_at' => now()->timestamp,
+        ]);
+
+        $health = app(PipelineHealthService::class)->forTask(
+            $task->fresh(['agentRuns', 'gates']),
+            ['pm', 'ux', 'dev'],
+        );
+
+        $this->assertSame(PipelineHealthState::BlockedWorker, $health['state']);
+        $this->assertStringContainsString('database', strtolower($health['message']));
     }
 }

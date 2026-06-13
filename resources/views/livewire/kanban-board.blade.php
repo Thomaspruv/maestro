@@ -1,4 +1,4 @@
-<div @if($shouldPoll) wire:poll.5s @endif>
+<div @if($boardShouldPoll) wire:poll.5s @endif>
     @if($workerBanner['show'] ?? false)
         @php
             $bannerClass = match ($workerBanner['tone']) {
@@ -143,7 +143,7 @@
                 <div class="overflow-y-auto border-r border-bg-overlay p-4">
                     @livewire('task-pipeline', ['task' => $openTask], key('drawer-pipeline-'.$openTask->id))
                 </div>
-                <div class="min-h-0 overflow-hidden p-4">
+                <div class="flex h-full min-h-0 flex-col overflow-hidden p-4">
                     @livewire('agent-output-viewer', ['task' => $openTask], key('drawer-output-'.$openTask->id))
                 </div>
             </div>

@@ -2,8 +2,11 @@
 
 namespace App\Livewire;
 
-use App\Enums\AgentRunStatus;
+use App\Enums\GateStatus;
+use App\Enums\TaskStatus;
+use App\Models\Gate;
 use App\Models\Task;
+use App\Services\GateReviewService;
 use App\Services\OrchestratorService;
 use App\Services\PipelineHealthService;
 use App\Services\ProjectAgentSyncService;
@@ -50,9 +53,26 @@ class TaskPipeline extends Component
     public function startPipeline(): void
     {
         $this->authorize('update', $this->task);
-        $this->task->update(['status' => \App\Enums\TaskStatus::InProgress, 'current_agent' => null]);
+        $this->task->update(['status' => TaskStatus::InProgress, 'current_agent' => null]);
         app(OrchestratorService::class)->advance($this->task->fresh());
         $this->refreshTask();
+    }
+
+    #[On('gate-reviewed')]
+    public function onGateReviewed(): void
+    {
+        $this->refreshTask();
+    }
+
+    public function approveGate(int $gateId, GateReviewService $gateReview): void
+    {
+        $gate = Gate::where('task_id', $this->task->id)->findOrFail($gateId);
+        $this->authorize('update', $gate);
+
+        $gateReview->approve($gate);
+        $this->refreshTask();
+        $this->dispatch('agent-selected', runId: $gate->agent_run_id);
+        $this->dispatch('gate-reviewed');
     }
 
     public function render()
@@ -60,7 +80,9 @@ class TaskPipeline extends Component
         $orchestrator = app(OrchestratorService::class);
         $pipeline = $orchestrator->getPipelineForTask($this->task);
         $runsByAgent = $this->task->agentRuns->keyBy(fn ($r) => $r->agent_type);
-        $pendingGates = $this->task->gates->where('status', 'pending');
+        $pendingGates = $this->task->gates->filter(
+            fn ($gate) => $gate->status === GateStatus::Pending
+        );
         $health = app(PipelineHealthService::class)->forTask($this->task, $pipeline);
 
         $labelService = app(ProjectAgentSyncService::class);

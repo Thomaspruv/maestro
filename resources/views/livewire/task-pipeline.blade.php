@@ -103,8 +103,19 @@
                 $agentGate = $pendingGates->first(fn ($g) => $g->agentRun?->agent_type === $agent);
             @endphp
             @if($agentGate)
-                <div class="maestro-gate-block mx-3 my-1">
+                <div class="maestro-gate-block mx-3 my-1" wire:click.stop>
                     <p class="text-[10px] font-semibold text-warning">Gate en attente — {{ $agentGate->gate_type->value }}</p>
+                    <div class="mt-2 flex gap-2">
+                        <button
+                            type="button"
+                            wire:click.stop="approveGate({{ $agentGate->id }})"
+                            wire:loading.attr="disabled"
+                            wire:target="approveGate"
+                            class="maestro-btn-primary px-2 py-1 text-[10px]"
+                        >
+                            ✓ Approuver
+                        </button>
+                    </div>
                 </div>
             @endif
         @endforeach

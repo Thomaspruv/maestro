@@ -2,7 +2,9 @@
 
 namespace App\Livewire;
 
+use App\Enums\TaskPriority;
 use App\Enums\TaskStatus;
+use App\Enums\TaskType;
 use App\Models\Project;
 use App\Models\Task;
 use App\Services\OrchestratorService;
@@ -141,11 +143,12 @@ class KanbanBoard extends Component
         return view('livewire.kanban-board', [
             'columns' => $columns,
             'stats' => $stats,
-            'taskTypes' => \App\Enums\TaskType::cases(),
-            'priorities' => \App\Enums\TaskPriority::cases(),
+            'taskTypes' => TaskType::cases(),
+            'priorities' => TaskPriority::cases(),
             'openTask' => $openTask,
             'workerBanner' => $workerBanner,
             'taskHealthMap' => $taskHealthMap,
+            'boardShouldPoll' => $this->polling && ! $this->openTaskId,
             'shouldPoll' => $this->polling || ($openTask && PipelineActivity::shouldPoll($openTask)),
         ]);
     }

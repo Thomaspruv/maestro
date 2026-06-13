@@ -2,16 +2,20 @@
 
 namespace Tests\Feature;
 
+use App\Agents\AgentFactory;
 use App\Enums\AgentRunStatus;
+use App\Enums\GateStatus;
 use App\Enums\TaskMode;
 use App\Enums\TaskStatus;
 use App\Enums\TaskType;
 use App\Models\AgentRun;
+use App\Models\Gate;
 use App\Models\Project;
 use App\Models\ProjectAgent;
 use App\Models\Task;
 use App\Models\User;
 use App\Models\UserAgent;
+use App\Services\GateReviewService;
 use App\Services\OrchestratorService;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\Queue;
@@ -107,6 +111,46 @@ class OrchestratorServiceTest extends TestCase
         $this->assertSame('tech_lead', $next);
     }
 
+    public function test_approving_gate_dispatches_next_agent_instead_of_recreating_gate(): void
+    {
+        Queue::fake();
+
+        $task = $this->makeTask(TaskType::Feature, TaskMode::Manual);
+
+        AgentRun::create([
+            'task_id' => $task->id,
+            'agent_type' => 'pm',
+            'status' => AgentRunStatus::Completed,
+            'model' => 'claude-sonnet-4-6',
+            'input' => [],
+            'output' => 'spec done',
+        ]);
+
+        $gate = Gate::factory()->create([
+            'task_id' => $task->id,
+            'agent_run_id' => $task->agentRuns()->first()->id,
+            'status' => GateStatus::Pending,
+        ]);
+
+        app(GateReviewService::class)->approve($gate);
+
+        $this->assertSame(GateStatus::Approved, $gate->fresh()->status);
+        $this->assertDatabaseMissing('gates', [
+            'task_id' => $task->id,
+            'status' => GateStatus::Pending->value,
+        ]);
+        $this->assertDatabaseHas('agent_runs', [
+            'task_id' => $task->id,
+            'agent_type' => 'ux',
+            'status' => AgentRunStatus::Pending->value,
+        ]);
+        $this->assertDatabaseHas('agent_runs', [
+            'task_id' => $task->id,
+            'agent_type' => 'tech_lead',
+            'status' => AgentRunStatus::Pending->value,
+        ]);
+    }
+
     public function test_advance_creates_pending_agent_run_before_job(): void
     {
         Queue::fake();
@@ -179,7 +223,7 @@ class OrchestratorServiceTest extends TestCase
 
         $this->assertSame('legal_reviewer', $next);
 
-        $agent = \App\Agents\AgentFactory::make('legal_reviewer', $project);
+        $agent = AgentFactory::make('legal_reviewer', $project);
         $this->assertNotEmpty($agent->systemPrompt());
     }
 }

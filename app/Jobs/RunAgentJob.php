@@ -12,6 +12,7 @@ use App\Services\AgentRunnerService;
 use App\Services\DevAgentRunner;
 use App\Services\NotificationService;
 use App\Services\OrchestratorService;
+use Illuminate\Bus\Batchable;
 use Illuminate\Contracts\Queue\ShouldQueue;
 use Illuminate\Foundation\Queue\Queueable;
 use Illuminate\Support\Facades\Log;
@@ -19,7 +20,7 @@ use Throwable;
 
 class RunAgentJob implements ShouldQueue
 {
-    use Queueable;
+    use Batchable, Queueable;
 
     public int $timeout = 120;
 
@@ -41,6 +42,10 @@ class RunAgentJob implements ShouldQueue
         OrchestratorService $orchestrator,
         NotificationService $notifications,
     ): void {
+        if ($this->batch()?->cancelled()) {
+            return;
+        }
+
         if ($this->agentRunId) {
             $run = AgentRun::query()->findOrFail($this->agentRunId);
             $run->update([

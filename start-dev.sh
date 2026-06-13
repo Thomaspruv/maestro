@@ -19,13 +19,8 @@ php artisan serve &
 # Lancement de Vite pour le front-end
 npm run dev &
 
-# Lancement de Horizon (ou fallback queue:work) pour la gestion des queues
-if php artisan list --raw 2>/dev/null | grep -qx 'horizon'; then
-    php artisan horizon &
-else
-    echo "⚠️  Horizon non disponible — utilisation de queue:work"
-    php artisan queue:work redis --queue=default,agents,dev-agent &
-fi
+# Lancement du worker de queue (Horizon si redis, sinon queue:work)
+bash scripts/queue-worker.sh &
 
 # Lancement du scheduler Laravel en mode continu
 php artisan schedule:work &
