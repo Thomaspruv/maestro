@@ -4,6 +4,7 @@ namespace App\Livewire;
 
 use App\Models\Task;
 use App\Services\OrchestratorService;
+use App\Services\ProjectAgentSyncService;
 use Livewire\Attributes\On;
 use Livewire\Component;
 
@@ -53,14 +54,16 @@ class TaskPipeline extends Component
     public function render()
     {
         $pipeline = app(OrchestratorService::class)->getPipelineForTask($this->task);
-        $runsByAgent = $this->task->agentRuns->keyBy(fn ($r) => $r->agent_type->value);
+        $runsByAgent = $this->task->agentRuns->keyBy(fn ($r) => $r->agent_type);
         $pendingGates = $this->task->gates->where('status', 'pending');
+
+        $labelService = app(ProjectAgentSyncService::class);
 
         return view('livewire.task-pipeline', [
             'pipeline' => $pipeline,
             'runsByAgent' => $runsByAgent,
             'pendingGates' => $pendingGates,
-            'agentLabels' => config('maestro.agent_labels', []),
+            'agentLabels' => $labelService->resolveLabelsForUser($this->task->project->user),
         ]);
     }
 }

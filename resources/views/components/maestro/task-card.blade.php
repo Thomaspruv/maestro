@@ -28,7 +28,7 @@
         <div class="flex flex-wrap gap-1">
             @foreach($task->agentRuns->sortBy('id') as $run)
                 @php
-                    $label = config("maestro.agent_labels.{$run->agent_type->value}.emoji", '🤖');
+                    $label = config("maestro.agent_labels.{$run->agent_type}.emoji", '🤖');
                     $pillStatus = match ($run->status->value) {
                         'running' => 'running',
                         'completed' => 'done',

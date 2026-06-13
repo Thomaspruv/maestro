@@ -3,7 +3,6 @@
 namespace App\Services;
 
 use App\Enums\AgentRunStatus;
-use App\Enums\AgentType;
 use App\Enums\GateStatus;
 use App\Enums\GateType;
 use App\Enums\TaskMode;
@@ -15,6 +14,7 @@ use App\Jobs\RunAgentJob;
 use App\Models\AgentRun;
 use App\Models\Gate;
 use App\Models\Task;
+use App\Services\AgentCapabilities;
 
 class OrchestratorService
 {
@@ -60,7 +60,7 @@ class OrchestratorService
             return;
         }
 
-        $queue = $nextAgent === AgentType::Dev->value ? 'dev-agent' : 'agents';
+        $queue = AgentCapabilities::queue(is_array($nextAgent) ? $nextAgent[0] : $nextAgent);
         RunAgentJob::dispatch($task, $nextAgent)->onQueue($queue);
     }
 
@@ -126,13 +126,13 @@ class OrchestratorService
         $agent = is_array($nextAgent) ? $nextAgent[0] : $nextAgent;
 
         if ($task->mode === TaskMode::SemiAuto) {
-            return $agent === AgentType::Doc->value && ($gateConfig['gate_merge'] ?? true);
+            return $agent === 'doc' && ($gateConfig['gate_merge'] ?? true);
         }
 
         return match ($agent) {
-            AgentType::Ux->value, AgentType::TechLead->value => $gateConfig['gate_specs'] ?? true,
-            AgentType::Security->value => $gateConfig['gate_tech'] ?? true,
-            AgentType::Doc->value => $gateConfig['gate_merge'] ?? true,
+            'ux', 'tech_lead' => $gateConfig['gate_specs'] ?? true,
+            'security' => $gateConfig['gate_tech'] ?? true,
+            'doc' => $gateConfig['gate_merge'] ?? true,
             default => false,
         };
     }
@@ -177,14 +177,13 @@ class OrchestratorService
         return $task->agentRuns()
             ->whereIn('status', [AgentRunStatus::Completed, AgentRunStatus::Skipped])
             ->pluck('agent_type')
-            ->map(fn (AgentType $type) => $type->value)
             ->all();
     }
 
     private function isAgentActive(Task $task, string $agentType): bool
     {
         $projectAgent = $task->project->agents
-            ->first(fn ($agent) => $agent->agent_type->value === $agentType);
+            ->first(fn ($agent) => $agent->agent_type === $agentType);
 
         if ($projectAgent === null) {
             return true;
@@ -213,15 +212,15 @@ class OrchestratorService
     {
         $agent = $pipeline[$index] ?? null;
 
-        if ($agent !== AgentType::Ux->value) {
+        if ($agent !== 'ux') {
             return false;
         }
 
         $next = $pipeline[$index + 1] ?? null;
 
-        return $next === AgentType::TechLead->value
-            && ! in_array(AgentType::Ux->value, $completed, true)
-            && ! in_array(AgentType::TechLead->value, $completed, true);
+        return $next === 'tech_lead'
+            && ! in_array('ux', $completed, true)
+            && ! in_array('tech_lead', $completed, true);
     }
 
     /**
@@ -262,9 +261,9 @@ class OrchestratorService
         $agent = is_array($nextAgent) ? $nextAgent[0] : $nextAgent;
 
         return match ($agent) {
-            AgentType::Ux->value, AgentType::TechLead->value => GateType::SpecsReview,
-            AgentType::Security->value => GateType::TechReview,
-            AgentType::Doc->value => GateType::MergeReview,
+            'ux', 'tech_lead' => GateType::SpecsReview,
+            'security' => GateType::TechReview,
+            'doc' => GateType::MergeReview,
             default => GateType::SpecsReview,
         };
     }

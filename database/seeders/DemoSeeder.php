@@ -2,16 +2,15 @@
 
 namespace Database\Seeders;
 
-use App\Enums\AgentType;
 use App\Enums\ProjectStatus;
 use App\Enums\TaskMode;
 use App\Enums\TaskPriority;
 use App\Enums\TaskStatus;
 use App\Enums\TaskType;
 use App\Models\Project;
-use App\Models\ProjectAgent;
 use App\Models\Task;
 use App\Models\User;
+use App\Services\ProjectAgentSyncService;
 use Illuminate\Database\Seeder;
 use Illuminate\Support\Facades\Hash;
 
@@ -34,6 +33,8 @@ class DemoSeeder extends Seeder
                 'password' => Hash::make('password'),
             ],
         );
+
+        UserAgentSeeder::seedForUser($user);
 
         $project = Project::create([
             'user_id' => $user->id,
@@ -61,22 +62,11 @@ class DemoSeeder extends Seeder
             'pipeline_config' => DefaultPipelineSeeder::pipelines(),
             'gate_config' => DefaultPipelineSeeder::gateConfig(),
             'default_modes' => DefaultPipelineSeeder::defaultModes(),
-            'model_config' => DefaultPipelineSeeder::defaultModels(),
             'status' => ProjectStatus::Active,
         ]);
 
-        $sortOrder = 0;
-        foreach (AgentType::cases() as $agentType) {
-            ProjectAgent::create([
-                'project_id' => $project->id,
-                'agent_type' => $agentType,
-                'is_active' => true,
-                'model' => DefaultPipelineSeeder::defaultModels()[$agentType->value]
-                    ?? config('maestro.default_models.'.$agentType->value),
-                'system_prompt' => AgentPromptSeeder::for($agentType),
-                'sort_order' => $sortOrder++,
-            ]);
-        }
+        $modelConfig = app(ProjectAgentSyncService::class)->copyUserAgentsToProject($user, $project);
+        $project->update(['model_config' => $modelConfig]);
 
         $tasks = [
             [
@@ -97,7 +87,7 @@ class DemoSeeder extends Seeder
                 'priority' => TaskPriority::Medium,
                 'status' => TaskStatus::InProgress,
                 'mode' => TaskMode::SemiAuto,
-                'current_agent' => AgentType::Dev,
+                'current_agent' => 'dev',
                 'sort_order' => 2,
             ],
             [

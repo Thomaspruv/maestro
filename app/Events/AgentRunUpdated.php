@@ -39,7 +39,7 @@ class AgentRunUpdated implements ShouldBroadcast
     {
         return [
             'run_id' => $this->run->id,
-            'agent_type' => $this->run->agent_type->value,
+            'agent_type' => $this->run->agent_type,
             'status' => $this->run->status->value,
             'cost' => $this->run->cost,
             'output' => $this->run->status->value === 'completed' ? $this->run->output : null,

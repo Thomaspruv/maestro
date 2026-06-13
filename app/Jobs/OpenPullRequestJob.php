@@ -3,7 +3,6 @@
 namespace App\Jobs;
 
 use App\Enums\AgentRunStatus;
-use App\Enums\AgentType;
 use App\Models\Task;
 use App\Services\GitHubService;
 use App\Services\NotificationService;
@@ -38,7 +37,7 @@ class OpenPullRequestJob implements ShouldQueue
         }
 
         $prExpertRun = $this->task->agentRuns()
-            ->where('agent_type', AgentType::PrExpert)
+            ->where('agent_type', 'pr_expert')
             ->where('status', AgentRunStatus::Completed)
             ->latest()
             ->first();

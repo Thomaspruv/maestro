@@ -25,7 +25,7 @@ class AgentRunnerService
         }
 
         $agent = AgentFactory::make($run->agent_type, $project);
-        $model = $this->resolveModel($project, $run->agent_type->value);
+        $model = $this->resolveModel($project, $run->agent_type);
 
         $response = $this->anthropic->createMessage(
             apiKey: $user->claude_api_key,
@@ -80,6 +80,9 @@ class AgentRunnerService
 
         return <<<TEXT
         ## Contexte du projet : {$project->name}
+
+        ### Vision produit
+        {$this->contextValue($ctx, 'vision')}
 
         ### Stack technique
         {$this->contextValue($ctx, 'stack')}

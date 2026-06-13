@@ -1,7 +1,7 @@
 <div class="maestro-card flex h-full flex-col">
     @if($run)
         <div class="flex items-center justify-between border-b border-bg-overlay px-4 py-3">
-            @php $label = $agentLabels[$run->agent_type->value] ?? ['emoji' => '🤖', 'name' => $run->agent_type->value]; @endphp
+            @php $label = $agentLabels[$run->agent_type] ?? ['emoji' => '🤖', 'name' => $run->agent_type]; @endphp
             <div>
                 <h2 class="text-sm font-semibold text-text-primary">
                     {{ $label['emoji'] }} {{ $label['name'] }}

@@ -9,8 +9,10 @@ use App\Enums\TaskType;
 use App\Models\Project;
 use App\Models\ProjectAgent;
 use App\Models\ProjectWizardDraft;
+use App\Models\UserAgent;
 use App\Services\CostEstimatorService;
 use App\Services\GitHubContextReader;
+use Database\Seeders\UserAgentSeeder;
 use Illuminate\Support\Facades\Auth;
 use Livewire\Component;
 
@@ -31,6 +33,8 @@ class ProjectWizard extends Component
     public bool $read_context_from_repo = false;
 
     public string $stack = '';
+
+    public string $vision = '';
 
     public string $conventions = '';
 
@@ -75,6 +79,7 @@ class ProjectWizard extends Component
         }
 
         if (isset($data['step2'])) {
+            $this->vision = $data['step2']['vision'] ?? '';
             $this->stack = $data['step2']['stack'] ?? '';
             $this->conventions = $data['step2']['conventions'] ?? '';
             $this->modules = $data['step2']['modules'] ?? '';
@@ -82,6 +87,7 @@ class ProjectWizard extends Component
             $this->constraints = $data['step2']['constraints'] ?? '';
         } elseif (isset($data['prefilled_context'])) {
             $ctx = $data['prefilled_context'];
+            $this->vision = $ctx['vision'] ?? '';
             $this->stack = $ctx['stack'] ?? '';
             $this->conventions = $ctx['conventions'] ?? '';
             $this->modules = $ctx['modules'] ?? '';
@@ -171,6 +177,7 @@ class ProjectWizard extends Component
     public function saveStep2(): void
     {
         $this->validate([
+            'vision' => ['nullable', 'string', 'max:10000'],
             'stack' => ['required', 'string', 'max:10000'],
             'conventions' => ['required', 'string', 'max:10000'],
             'modules' => ['required', 'string', 'max:10000'],
@@ -185,6 +192,7 @@ class ProjectWizard extends Component
         ]);
 
         $this->persistDraft(3, ['step2' => [
+            'vision' => $this->vision,
             'stack' => $this->stack,
             'conventions' => $this->conventions,
             'modules' => $this->modules,
@@ -238,8 +246,14 @@ class ProjectWizard extends Component
         ]);
 
         foreach ($data['step4']['agents'] as $type => $config) {
+            $userAgent = UserAgent::query()
+                ->where('user_id', Auth::id())
+                ->where('slug', $type)
+                ->first();
+
             ProjectAgent::create([
                 'project_id' => $project->id,
+                'user_agent_id' => $userAgent?->id,
                 'agent_type' => $type,
                 'is_active' => $config['is_active'] ?? true,
                 'model' => $config['model'],
@@ -295,17 +309,20 @@ class ProjectWizard extends Component
 
     private function initDefaultAgents(): void
     {
-        $defaults = config('maestro.default_models', []);
-        $sort = 0;
+        $user = Auth::user();
 
-        foreach (AgentType::cases() as $type) {
-            $value = $type->value;
-            $this->models[$value] = $defaults[$value] ?? 'claude-sonnet-4-6';
-            $this->agents[$value] = [
+        if ($user->agents()->count() === 0) {
+            UserAgentSeeder::seedForUser($user);
+        }
+
+        foreach ($user->agents()->orderBy('sort_order')->get() as $userAgent) {
+            $slug = $userAgent->slug;
+            $this->models[$slug] = $userAgent->model;
+            $this->agents[$slug] = [
                 'is_active' => true,
-                'model' => $this->models[$value],
-                'system_prompt' => "Tu es l'agent {$type->label()} pour ce projet.",
-                'sort_order' => $sort++,
+                'model' => $userAgent->model,
+                'system_prompt' => $userAgent->system_prompt,
+                'sort_order' => $userAgent->sort_order,
             ];
         }
     }

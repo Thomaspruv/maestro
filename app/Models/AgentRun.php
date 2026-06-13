@@ -3,7 +3,6 @@
 namespace App\Models;
 
 use App\Enums\AgentRunStatus;
-use App\Enums\AgentType;
 use Database\Factories\AgentRunFactory;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
@@ -52,7 +51,6 @@ class AgentRun extends Model
     protected function casts(): array
     {
         return [
-            'agent_type' => AgentType::class,
             'status' => AgentRunStatus::class,
             'input' => 'array',
             'cost' => 'decimal:6',

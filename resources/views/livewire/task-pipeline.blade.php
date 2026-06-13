@@ -65,7 +65,7 @@
             </div>
 
             @php
-                $agentGate = $pendingGates->first(fn ($g) => $g->agentRun?->agent_type->value === $agent);
+                $agentGate = $pendingGates->first(fn ($g) => $g->agentRun?->agent_type === $agent);
             @endphp
             @if($agentGate)
                 <div class="maestro-gate-block mx-3 my-1">

@@ -3,11 +3,11 @@
 namespace App\Jobs;
 
 use App\Enums\AgentRunStatus;
-use App\Enums\AgentType;
 use App\Enums\TaskStatus;
 use App\Events\AgentRunUpdated;
 use App\Models\AgentRun;
 use App\Models\Task;
+use App\Services\AgentCapabilities;
 use App\Services\AgentRunnerService;
 use App\Services\DevAgentRunner;
 use App\Services\NotificationService;
@@ -32,11 +32,7 @@ class RunAgentJob implements ShouldQueue
         public readonly bool $skipAdvance = false,
         public ?int $agentRunId = null,
     ) {
-        if ($this->agentType === AgentType::Dev->value) {
-            $this->onQueue('dev-agent');
-        } else {
-            $this->onQueue('agents');
-        }
+        $this->onQueue(AgentCapabilities::queue($this->agentType));
     }
 
     public function handle(
@@ -72,7 +68,7 @@ class RunAgentJob implements ShouldQueue
         broadcast(new AgentRunUpdated($run->fresh()));
 
         try {
-            $result = $this->agentType === AgentType::Dev->value
+            $result = AgentCapabilities::isDev($this->agentType)
                 ? $devRunner->run($run)
                 : $runner->run($run);
 
@@ -89,7 +85,7 @@ class RunAgentJob implements ShouldQueue
             $this->task->increment('actual_cost', $result->cost);
             broadcast(new AgentRunUpdated($run->fresh()));
 
-            if ($this->agentType === AgentType::PrExpert->value) {
+            if (AgentCapabilities::postAction($this->agentType) === 'open_pr') {
                 OpenPullRequestJob::dispatch($this->task->fresh());
             }
 
@@ -141,7 +137,7 @@ class RunAgentJob implements ShouldQueue
             ->where('status', AgentRunStatus::Completed)
             ->get()
             ->mapWithKeys(fn (AgentRun $run) => [
-                $run->agent_type->value => $run->edited_output ?? $run->output,
+                $run->agent_type => $run->edited_output ?? $run->output,
             ])
             ->toArray();
 

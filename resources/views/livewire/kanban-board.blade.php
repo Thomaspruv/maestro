@@ -1,4 +1,9 @@
 <div @if($polling) wire:poll.5s @endif>
+    {{-- Lancement Discovery --}}
+    <div class="mb-5">
+        <x-maestro.discovery-button :project="$project" size="banner" />
+    </div>
+
     {{-- Statistiques --}}
     <div class="mb-5 grid grid-cols-4 gap-3">
         <x-maestro.stat-card label="Tâches totales" :value="$stats['total']" icon="📋" />

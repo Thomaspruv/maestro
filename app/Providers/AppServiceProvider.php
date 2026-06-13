@@ -4,7 +4,10 @@ namespace App\Providers;
 
 use App\Enums\ProjectStatus;
 use App\Models\Project;
+use Database\Seeders\UserAgentSeeder;
+use Illuminate\Auth\Events\Registered;
 use Illuminate\Support\Facades\Auth;
+use Illuminate\Support\Facades\Event;
 use Illuminate\Support\Facades\View;
 use Illuminate\Support\ServiceProvider;
 
@@ -23,6 +26,10 @@ class AppServiceProvider extends ServiceProvider
      */
     public function boot(): void
     {
+        Event::listen(Registered::class, function (Registered $event): void {
+            UserAgentSeeder::seedForUser($event->user);
+        });
+
         View::composer('layouts.maestro', function ($view): void {
             $project = request()->route('project');
 

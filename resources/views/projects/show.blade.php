@@ -3,6 +3,7 @@
 @section('title', $project->name)
 
 @section('actions')
+    <x-maestro.discovery-button :project="$project" size="compact" />
     <x-maestro.button variant="ghost" tag="a" href="{{ route('projects.settings.edit', $project) }}">⚙️ Paramètres</x-maestro.button>
     <x-maestro.button variant="ghost" tag="a" href="{{ route('projects.costs.index', $project) }}">💰 Coûts</x-maestro.button>
     <x-maestro.button tag="a" href="{{ route('projects.tasks.create', $project) }}">+ Nouvelle tâche</x-maestro.button>

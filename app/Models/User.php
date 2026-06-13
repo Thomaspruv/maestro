@@ -37,6 +37,14 @@ class User extends Authenticatable
     }
 
     /**
+     * @return HasMany<UserAgent, $this>
+     */
+    public function agents(): HasMany
+    {
+        return $this->hasMany(UserAgent::class);
+    }
+
+    /**
      * @return HasMany<CostLog, $this>
      */
     public function costLogs(): HasMany

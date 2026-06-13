@@ -39,6 +39,14 @@
 
             <x-maestro.validation-summary />
 
+            <x-maestro.textarea
+                wire:model="vision"
+                label="Vision produit"
+                rows="4"
+                placeholder="Où va le produit ? Quels utilisateurs, quelle promesse, quelles priorités ?"
+            />
+            <p class="mb-4 text-[10px] text-text-muted">Optionnel mais recommandé — utilisé par Discovery, PM et UX.</p>
+
             <x-maestro.textarea wire:model="stack" label="Stack technique" rows="3" required />
             <x-maestro.textarea wire:model="conventions" label="Conventions de code" rows="3" required />
             <x-maestro.textarea wire:model="modules" label="Modules / architecture" rows="3" required />

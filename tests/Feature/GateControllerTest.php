@@ -2,7 +2,6 @@
 
 namespace Tests\Feature;
 
-use App\Enums\AgentType;
 use App\Enums\GateStatus;
 use App\Enums\GateType;
 use App\Enums\TaskStatus;
@@ -25,7 +24,7 @@ class GateControllerTest extends TestCase
         $task = Task::factory()->create(['project_id' => $project->id, 'status' => TaskStatus::InProgress]);
         $run = AgentRun::factory()->create([
             'task_id' => $task->id,
-            'agent_type' => AgentType::Pm,
+            'agent_type' => 'pm',
             'status' => \App\Enums\AgentRunStatus::Completed,
         ]);
         $gate = Gate::factory()->create([

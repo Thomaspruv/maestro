@@ -6,6 +6,7 @@ use App\Models\AgentRun;
 use App\Models\Gate;
 use App\Models\Task;
 use App\Services\OrchestratorService;
+use App\Services\ProjectAgentSyncService;
 use Livewire\Attributes\On;
 use Livewire\Component;
 
@@ -108,7 +109,7 @@ class AgentOutputViewer extends Component
 
         \App\Jobs\RunAgentJob::dispatch(
             $this->task,
-            $gate->agentRun->agent_type->value,
+            $gate->agentRun->agent_type,
             feedback: $this->gateFeedback,
         );
 
@@ -123,10 +124,12 @@ class AgentOutputViewer extends Component
             ? $this->task->gates->where('agent_run_id', $run->id)->where('status', 'pending')->first()
             : null;
 
+        $labelService = app(ProjectAgentSyncService::class);
+
         return view('livewire.agent-output-viewer', [
             'run' => $run,
             'pendingGate' => $pendingGate,
-            'agentLabels' => config('maestro.agent_labels', []),
+            'agentLabels' => $labelService->resolveLabelsForUser($this->task->project->user),
         ]);
     }
 

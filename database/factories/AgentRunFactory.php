@@ -3,7 +3,6 @@
 namespace Database\Factories;
 
 use App\Enums\AgentRunStatus;
-use App\Enums\AgentType;
 use App\Models\AgentRun;
 use App\Models\Task;
 use Illuminate\Database\Eloquent\Factories\Factory;
@@ -22,7 +21,7 @@ class AgentRunFactory extends Factory
     {
         return [
             'task_id' => Task::factory(),
-            'agent_type' => AgentType::Pm,
+            'agent_type' => 'pm',
             'status' => AgentRunStatus::Pending,
             'input' => [],
             'output' => null,

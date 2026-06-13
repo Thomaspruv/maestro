@@ -32,8 +32,19 @@
                 📊 Dashboard
             </a>
             <a href="{{ route('projects.index') }}"
-               class="maestro-nav-item {{ request()->routeIs('projects.*') && ! request()->routeIs('projects.costs.*') ? 'maestro-nav-item-active' : '' }}">
+               class="maestro-nav-item {{ request()->routeIs('projects.*') && ! request()->routeIs('projects.costs.*') && ! request()->routeIs('projects.discovery') ? 'maestro-nav-item-active' : '' }}">
                 📁 Projets
+            </a>
+            @isset($currentProject)
+                <a href="{{ route('projects.discovery', $currentProject) }}"
+                   class="maestro-nav-item {{ request()->routeIs('projects.discovery') ? 'maestro-nav-item-active maestro-nav-discovery' : 'maestro-nav-discovery' }}">
+                    <span class="discovery-btn-icon inline-flex h-5 w-5 items-center justify-center rounded text-[11px]">🤖</span>
+                    Discovery IA
+                </a>
+            @endisset
+            <a href="{{ route('agents.index') }}"
+               class="maestro-nav-item {{ request()->routeIs('agents.*') ? 'maestro-nav-item-active' : '' }}">
+                🤖 Agents
             </a>
             <a href="{{ route('costs.global') }}"
                class="maestro-nav-item {{ request()->routeIs('costs.global') ? 'maestro-nav-item-active' : '' }}">
@@ -63,6 +74,7 @@
                             @endforeach
                         </select>
                     @endif
+                    <x-maestro.discovery-button :project="$currentProject" size="full" class="mt-3" />
                 </div>
             </div>
         @endisset

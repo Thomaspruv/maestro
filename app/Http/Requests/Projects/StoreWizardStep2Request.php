@@ -17,6 +17,7 @@ class StoreWizardStep2Request extends FormRequest
     public function rules(): array
     {
         return [
+            'vision' => ['nullable', 'string', 'max:10000'],
             'stack' => ['required', 'string', 'max:10000'],
             'conventions' => ['required', 'string', 'max:10000'],
             'modules' => ['required', 'string', 'max:10000'],

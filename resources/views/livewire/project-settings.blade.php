@@ -17,7 +17,23 @@
 
     {{-- Contexte --}}
     @if($activeSection === 'context')
+        <div class="maestro-card mb-4 p-5">
+            <h2 class="mb-1 text-sm font-semibold text-text-primary">Vision produit</h2>
+            <p class="mb-4 text-[11px] leading-relaxed text-text-muted">
+                Décrivez la vision, le positionnement et les priorités produit. Ce texte est transmis aux agents
+                Discovery, PM et UX pour aligner leurs propositions sur votre direction — pas seulement sur le code.
+            </p>
+            <x-maestro.textarea
+                wire:model="vision"
+                label="Vision"
+                rows="5"
+                placeholder="Ex. : Maestro aide les équipes solo à orchestrer des agents IA sur leur backlog. Priorité : simplicité, transparence des coûts, features orientées product owner…"
+            />
+        </div>
+
         <div class="maestro-card p-5">
+            <h2 class="mb-1 text-sm font-semibold text-text-primary">Contexte technique</h2>
+            <p class="mb-4 text-[11px] text-text-muted">Informations transmises à tous les agents du pipeline.</p>
             <x-maestro.textarea wire:model="stack" label="Stack technique" rows="4" />
             <x-maestro.textarea wire:model="conventions" label="Conventions de code" rows="4" />
             <x-maestro.textarea wire:model="modules" label="Modules / architecture" rows="4" />
@@ -31,6 +47,14 @@
 
     {{-- Agents --}}
     @if($activeSection === 'agents')
+        <div class="mb-4 flex items-center justify-between">
+            <p class="text-xs text-text-secondary">
+                Overrides spécifiques à ce projet. Modifiez la bibliothèque globale pour les nouveaux projets.
+            </p>
+            <a href="{{ route('agents.index') }}" class="text-xs text-primary-light hover:underline">
+                Modifier la bibliothèque →
+            </a>
+        </div>
         <div class="space-y-2">
             @foreach($agents as $index => $agent)
                 @php

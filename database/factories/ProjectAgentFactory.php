@@ -2,7 +2,6 @@
 
 namespace Database\Factories;
 
-use App\Enums\AgentType;
 use App\Models\Project;
 use App\Models\ProjectAgent;
 use Illuminate\Database\Eloquent\Factories\Factory;
@@ -21,7 +20,7 @@ class ProjectAgentFactory extends Factory
     {
         return [
             'project_id' => Project::factory(),
-            'agent_type' => fake()->randomElement(AgentType::cases()),
+            'agent_type' => fake()->randomElement(array_column(\App\Enums\AgentType::cases(), 'value')),
             'is_active' => true,
             'model' => 'claude-sonnet-4-6',
             'system_prompt' => 'Prompt par défaut.',

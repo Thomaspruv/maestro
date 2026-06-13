@@ -3,7 +3,6 @@
 namespace Tests\Feature;
 
 use App\Enums\AgentRunStatus;
-use App\Enums\AgentType;
 use App\Enums\TaskMode;
 use App\Enums\TaskStatus;
 use App\Enums\TaskType;
@@ -12,6 +11,7 @@ use App\Models\Project;
 use App\Models\ProjectAgent;
 use App\Models\Task;
 use App\Models\User;
+use App\Models\UserAgent;
 use App\Services\OrchestratorService;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Tests\TestCase;
@@ -25,10 +25,10 @@ class OrchestratorServiceTest extends TestCase
         $user = User::factory()->create();
         $project = Project::factory()->create(['user_id' => $user->id]);
 
-        foreach (AgentType::cases() as $agentType) {
+        foreach ($user->agents as $userAgent) {
             ProjectAgent::factory()->create([
                 'project_id' => $project->id,
-                'agent_type' => $agentType,
+                'agent_type' => $userAgent->slug,
                 'is_active' => true,
             ]);
         }
@@ -87,14 +87,14 @@ class OrchestratorServiceTest extends TestCase
         $task = $this->makeTask(TaskType::Feature, TaskMode::FullAuto);
 
         ProjectAgent::where('project_id', $task->project_id)
-            ->where('agent_type', AgentType::Ux)
+            ->where('agent_type', 'ux')
             ->update(['is_active' => false]);
 
         $orchestrator = app(OrchestratorService::class);
 
         AgentRun::create([
             'task_id' => $task->id,
-            'agent_type' => AgentType::Pm,
+            'agent_type' => 'pm',
             'status' => AgentRunStatus::Completed,
             'model' => 'claude-sonnet-4-6',
             'input' => [],
@@ -104,5 +104,64 @@ class OrchestratorServiceTest extends TestCase
         $next = $orchestrator->resolveNextAgent($task->fresh());
 
         $this->assertSame('tech_lead', $next);
+    }
+
+    public function test_custom_agent_in_pipeline_resolves_without_enum_error(): void
+    {
+        $user = User::factory()->create();
+        $project = Project::factory()->create([
+            'user_id' => $user->id,
+            'pipeline_config' => [
+                'feature' => ['pm', 'legal_reviewer', 'dev'],
+            ],
+        ]);
+
+        UserAgent::factory()->create([
+            'user_id' => $user->id,
+            'slug' => 'legal_reviewer',
+            'name' => 'Legal',
+        ]);
+
+        ProjectAgent::factory()->create([
+            'project_id' => $project->id,
+            'agent_type' => 'pm',
+            'is_active' => true,
+        ]);
+
+        ProjectAgent::factory()->create([
+            'project_id' => $project->id,
+            'agent_type' => 'legal_reviewer',
+            'is_active' => true,
+        ]);
+
+        ProjectAgent::factory()->create([
+            'project_id' => $project->id,
+            'agent_type' => 'dev',
+            'is_active' => true,
+        ]);
+
+        $task = Task::factory()->create([
+            'project_id' => $project->id,
+            'type' => TaskType::Feature,
+            'mode' => TaskMode::FullAuto,
+            'status' => TaskStatus::InProgress,
+        ]);
+
+        AgentRun::create([
+            'task_id' => $task->id,
+            'agent_type' => 'pm',
+            'status' => AgentRunStatus::Completed,
+            'model' => 'claude-sonnet-4-6',
+            'input' => [],
+            'output' => 'spec',
+        ]);
+
+        $orchestrator = app(OrchestratorService::class);
+        $next = $orchestrator->resolveNextAgent($task->fresh());
+
+        $this->assertSame('legal_reviewer', $next);
+
+        $agent = \App\Agents\AgentFactory::make('legal_reviewer', $project);
+        $this->assertNotEmpty($agent->systemPrompt());
     }
 }

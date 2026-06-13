@@ -23,6 +23,7 @@ return [
         'qa' => 800,
         'pr_expert' => 500,
         'doc' => 300,
+        'discovery' => 1200,
     ],
 
     'project_context_tokens' => 2000,
@@ -36,6 +37,7 @@ return [
         'qa' => 'claude-haiku-4-5',
         'pr_expert' => 'claude-haiku-4-5',
         'doc' => 'claude-haiku-4-5',
+        'discovery' => 'claude-sonnet-4-6',
     ],
 
     'default_pipelines' => [
@@ -68,6 +70,28 @@ return [
         'qa' => ['emoji' => '🧪', 'name' => 'QA Agent'],
         'pr_expert' => ['emoji' => '📝', 'name' => 'PR Expert'],
         'doc' => ['emoji' => '📚', 'name' => 'Doc Agent'],
+        'discovery' => ['emoji' => '🤖', 'name' => 'Discovery IA'],
     ],
+
+    'builtin_agents' => [
+        'pm' => ['runner' => 'api'],
+        'ux' => ['runner' => 'api'],
+        'tech_lead' => ['runner' => 'api'],
+        'security' => ['runner' => 'api'],
+        'dev' => ['runner' => 'dev', 'queue' => 'dev-agent'],
+        'qa' => ['runner' => 'api'],
+        'pr_expert' => ['runner' => 'api', 'post_action' => 'open_pr'],
+        'doc' => ['runner' => 'api'],
+        'discovery' => ['runner' => 'chat'],
+    ],
+
+    'discovery_sources' => [
+        'https://news.ycombinator.com/rss',
+        'https://www.producthunt.com/feed',
+    ],
+
+    'anthropic_timeout' => 60,
+
+    'anthropic_discovery_timeout' => 180,
 
 ];

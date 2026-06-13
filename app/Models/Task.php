@@ -2,7 +2,6 @@
 
 namespace App\Models;
 
-use App\Enums\AgentType;
 use App\Enums\PrStatus;
 use App\Enums\TaskMode;
 use App\Enums\TaskPriority;
@@ -85,7 +84,6 @@ class Task extends Model
             'priority' => TaskPriority::class,
             'status' => TaskStatus::class,
             'mode' => TaskMode::class,
-            'current_agent' => AgentType::class,
             'pr_status' => PrStatus::class,
             'estimated_cost' => 'decimal:4',
             'actual_cost' => 'decimal:4',

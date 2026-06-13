@@ -2,7 +2,7 @@
 
 namespace App\Http\Requests\Projects;
 
-use App\Enums\AgentType;
+use Database\Seeders\UserAgentSeeder;
 use Illuminate\Foundation\Http\FormRequest;
 use Illuminate\Validation\Rule;
 
@@ -18,20 +18,29 @@ class StoreWizardStep4Request extends FormRequest
      */
     public function rules(): array
     {
-        $agentTypes = array_column(AgentType::cases(), 'value');
+        $user = $this->user();
+
+        if ($user->agents()->count() === 0) {
+            UserAgentSeeder::seedForUser($user);
+        }
+
+        $agentSlugs = $user->agents()->pluck('slug')->all();
         $models = array_keys(config('maestro.model_prices', []));
 
-        return [
+        $rules = [
             'models' => ['required', 'array'],
             'models.*' => ['required', 'string', Rule::in($models)],
             'agents' => ['required', 'array'],
-            'agents.*' => ['required', 'array'],
-            'agents.*.is_active' => ['boolean'],
-            'agents.*.model' => ['required', 'string', Rule::in($models)],
-            'agents.*.system_prompt' => ['required', 'string', 'max:50000'],
-            'agents.*.sort_order' => ['required', 'integer', 'min:0'],
-        ] + collect($agentTypes)->mapWithKeys(fn (string $type) => [
-            "agents.{$type}" => ['sometimes', 'array'],
-        ])->all();
+        ];
+
+        foreach ($agentSlugs as $slug) {
+            $rules["agents.{$slug}"] = ['required', 'array'];
+            $rules["agents.{$slug}.is_active"] = ['boolean'];
+            $rules["agents.{$slug}.model"] = ['required', 'string', Rule::in($models)];
+            $rules["agents.{$slug}.system_prompt"] = ['required', 'string', 'max:50000'];
+            $rules["agents.{$slug}.sort_order"] = ['required', 'integer', 'min:0'];
+        }
+
+        return $rules;
     }
 }

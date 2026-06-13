@@ -29,7 +29,7 @@ class NotificationService
         Log::error('Échec agent', [
             'task_id' => $task->id,
             'agent_run_id' => $run->id,
-            'agent_type' => $run->agent_type->value,
+            'agent_type' => $run->agent_type,
             'error' => $run->error_message,
         ]);
 

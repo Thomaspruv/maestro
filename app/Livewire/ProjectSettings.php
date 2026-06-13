@@ -2,11 +2,11 @@
 
 namespace App\Livewire;
 
-use App\Enums\AgentType;
 use App\Enums\TaskMode;
 use App\Enums\TaskType;
 use App\Models\Project;
 use App\Models\ProjectAgent;
+use App\Services\ProjectAgentSyncService;
 use Illuminate\Validation\Rule;
 use Livewire\Component;
 
@@ -15,6 +15,8 @@ class ProjectSettings extends Component
     public Project $project;
 
     public string $stack = '';
+
+    public string $vision = '';
 
     public string $conventions = '';
 
@@ -46,6 +48,7 @@ class ProjectSettings extends Component
         $this->project = $project->load(['agents.promptHistories']);
 
         $context = $project->context ?? [];
+        $this->vision = $context['vision'] ?? '';
         $this->stack = $context['stack'] ?? '';
         $this->conventions = $context['conventions'] ?? '';
         $this->modules = $context['modules'] ?? '';
@@ -58,7 +61,7 @@ class ProjectSettings extends Component
 
         $this->agents = $project->agents->map(fn (ProjectAgent $a) => [
             'id' => $a->id,
-            'agent_type' => $a->agent_type->value,
+            'agent_type' => $a->agent_type,
             'is_active' => $a->is_active,
             'model' => $a->model,
             'system_prompt' => $a->system_prompt,
@@ -70,6 +73,7 @@ class ProjectSettings extends Component
     public function saveContext(): void
     {
         $this->validate([
+            'vision' => ['nullable', 'string', 'max:10000'],
             'stack' => ['required', 'string', 'max:10000'],
             'conventions' => ['required', 'string', 'max:10000'],
             'modules' => ['required', 'string', 'max:10000'],
@@ -79,6 +83,7 @@ class ProjectSettings extends Component
 
         $this->project->update([
             'context' => [
+                'vision' => $this->vision,
                 'stack' => $this->stack,
                 'conventions' => $this->conventions,
                 'modules' => $this->modules,
@@ -93,15 +98,17 @@ class ProjectSettings extends Component
     public function saveAgents(): void
     {
         $models = array_keys(config('maestro.model_prices', []));
-        $agentTypes = array_column(AgentType::cases(), 'value');
+        $projectSlugs = $this->project->agents()->pluck('agent_type')->all();
 
         $this->validate([
-            'agents.*.agent_type' => ['required', 'string', Rule::in($agentTypes)],
+            'agents.*.agent_type' => ['required', 'string', Rule::in($projectSlugs)],
             'agents.*.is_active' => ['boolean'],
             'agents.*.model' => ['required', 'string', Rule::in($models)],
             'agents.*.system_prompt' => ['required', 'string', 'max:50000'],
             'agents.*.sort_order' => ['required', 'integer', 'min:0'],
         ]);
+
+        $modelConfig = $this->project->model_config ?? [];
 
         foreach ($this->agents as $agentData) {
             ProjectAgent::updateOrCreate(
@@ -116,7 +123,11 @@ class ProjectSettings extends Component
                     'sort_order' => $agentData['sort_order'],
                 ],
             );
+
+            $modelConfig[$agentData['agent_type']] = $agentData['model'];
         }
+
+        $this->project->update(['model_config' => $modelConfig]);
 
         session()->flash('success', 'Agents mis à jour.');
     }
@@ -139,12 +150,13 @@ class ProjectSettings extends Component
 
     public function render()
     {
+        $labelService = app(ProjectAgentSyncService::class);
+
         return view('livewire.project-settings', [
             'taskTypes' => TaskType::cases(),
             'taskModes' => TaskMode::cases(),
-            'agentTypes' => AgentType::cases(),
             'modelOptions' => array_keys(config('maestro.model_prices', [])),
-            'agentLabels' => config('maestro.agent_labels', []),
+            'agentLabels' => $labelService->resolveLabelsForUser($this->project->user),
         ]);
     }
 }

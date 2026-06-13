@@ -2,7 +2,6 @@
 
 namespace App\Models;
 
-use App\Enums\AgentType;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
@@ -14,6 +13,7 @@ class ProjectAgent extends Model
 
     protected $fillable = [
         'project_id',
+        'user_agent_id',
         'agent_type',
         'is_active',
         'model',
@@ -30,6 +30,14 @@ class ProjectAgent extends Model
     }
 
     /**
+     * @return BelongsTo<UserAgent, $this>
+     */
+    public function userAgent(): BelongsTo
+    {
+        return $this->belongsTo(UserAgent::class);
+    }
+
+    /**
      * @return HasMany<AgentPromptHistory, $this>
      */
     public function promptHistories(): HasMany
@@ -40,7 +48,6 @@ class ProjectAgent extends Model
     protected function casts(): array
     {
         return [
-            'agent_type' => AgentType::class,
             'is_active' => 'boolean',
         ];
     }

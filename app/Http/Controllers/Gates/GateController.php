@@ -51,7 +51,7 @@ class GateController extends Controller
 
         RunAgentJob::dispatch(
             $gate->task,
-            $gate->agentRun->agent_type->value,
+            $gate->agentRun->agent_type,
             feedback: $request->validated('feedback'),
         );
 

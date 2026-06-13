@@ -39,8 +39,8 @@
                         </td>
                         <td class="px-4 py-2 text-text-muted">
                             @if($log->agentRun)
-                                {{ config('maestro.agent_labels.'.$log->agentRun->agent_type->value.'.emoji', '🤖') }}
-                                {{ config('maestro.agent_labels.'.$log->agentRun->agent_type->value.'.name', $log->agentRun->agent_type->value) }}
+                                {{ config('maestro.agent_labels.'.$log->agentRun->agent_type.'.emoji', '🤖') }}
+                                {{ config('maestro.agent_labels.'.$log->agentRun->agent_type.'.name', $log->agentRun->agent_type) }}
                             @else
                                 —
                             @endif

@@ -2,13 +2,10 @@
 
 namespace App\Http\Controllers\Projects;
 
-use App\Agents\AgentFactory;
-use App\Enums\AgentType;
 use App\Http\Controllers\Controller;
 use App\Models\Project;
 use App\Models\ProjectAgent;
-use App\Services\AgentRunnerService;
-use App\Services\AnthropicClient;
+use App\Services\AgentTestService;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
@@ -21,11 +18,11 @@ class ProjectAgentController extends Controller
         $this->authorize('update', $project);
 
         $models = array_keys(config('maestro.model_prices', []));
-        $agentTypes = array_column(AgentType::cases(), 'value');
+        $projectSlugs = $project->agents()->pluck('agent_type')->all();
 
         $validated = $request->validate([
             'agents' => ['required', 'array'],
-            'agents.*.agent_type' => ['required', 'string', Rule::in($agentTypes)],
+            'agents.*.agent_type' => ['required', 'string', Rule::in($projectSlugs)],
             'agents.*.is_active' => ['boolean'],
             'agents.*.model' => ['required', 'string', Rule::in($models)],
             'agents.*.system_prompt' => ['required', 'string', 'max:50000'],
@@ -47,42 +44,32 @@ class ProjectAgentController extends Controller
             );
         }
 
+        $modelConfig = collect($validated['agents'])
+            ->pluck('model', 'agent_type')
+            ->all();
+
+        $project->update(['model_config' => array_merge($project->model_config ?? [], $modelConfig)]);
+
         return back()->with('success', 'Agents mis à jour.');
     }
 
-    public function test(Request $request, Project $project, string $type, AnthropicClient $anthropic, AgentRunnerService $runner): JsonResponse
+    public function test(Request $request, Project $project, string $type, AgentTestService $testService): JsonResponse
     {
         $this->authorize('update', $project);
 
-        abort_unless(in_array($type, array_column(AgentType::cases(), 'value'), true), 404);
-
         $projectAgent = $project->agents()->where('agent_type', $type)->firstOrFail();
-        $apiKey = $request->user()->claude_api_key;
 
-        if (! $apiKey) {
-            return response()->json(['error' => 'Clé API Claude non configurée.'], 422);
+        try {
+            $result = $testService->test(
+                $request->user(),
+                $projectAgent->system_prompt,
+                $projectAgent->model,
+                $project,
+            );
+
+            return response()->json($result);
+        } catch (\Throwable $e) {
+            return response()->json(['error' => $e->getMessage()], 422);
         }
-
-        $agent = AgentFactory::make(AgentType::from($type), $project);
-        $model = $projectAgent->model ?? config("maestro.default_models.{$type}", 'claude-sonnet-4-6');
-
-        $response = $anthropic->createMessage(
-            apiKey: $apiKey,
-            model: $model,
-            systemBlocks: [
-                ['type' => 'text', 'text' => $runner->buildProjectContext($project)],
-                ['type' => 'text', 'text' => $agent->systemPrompt()],
-            ],
-            userMessage: 'Réponds brièvement pour confirmer que tu es opérationnel sur ce projet.',
-            maxTokens: 256,
-        );
-
-        $usage = $response['usage'];
-        $cost = $runner->calculateCost($model, $usage['input_tokens'], $usage['output_tokens'], $usage['cache_read_input_tokens']);
-
-        return response()->json([
-            'output' => $response['text'],
-            'cost' => $cost,
-        ]);
     }
 }

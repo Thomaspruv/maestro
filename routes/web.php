@@ -64,6 +64,9 @@ Route::middleware(['auth', 'verified'])->group(function () {
 
         Route::get('/{project}/costs', [CostController::class, 'index'])->name('costs.index');
 
+        Route::get('/{project}/discovery', fn (\App\Models\Project $project) => view('discovery.index', compact('project')))
+            ->name('discovery');
+
         Route::prefix('{project}/tasks')->name('tasks.')->group(function () {
             Route::get('/create', [TaskController::class, 'create'])->name('create');
             Route::get('/estimate', [CostEstimatorController::class, 'estimateDraft'])->name('estimate.draft');
@@ -79,6 +82,8 @@ Route::middleware(['auth', 'verified'])->group(function () {
     });
 
     Route::get('/costs', [CostController::class, 'global'])->name('costs.global');
+
+    Route::view('/agents', 'agents.index')->name('agents.index');
 
     Route::post('/gates/{gate}/approve', [GateController::class, 'approve'])->name('gates.approve');
     Route::post('/gates/{gate}/reject', [GateController::class, 'reject'])->name('gates.reject');
