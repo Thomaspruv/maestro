@@ -1,4 +1,16 @@
-<div @if($polling) wire:poll.5s @endif>
+<div @if($shouldPoll) wire:poll.5s @endif>
+    @if($needsQueueWorker)
+        <div class="mb-4 rounded-lg border border-warning/40 bg-warning-muted/20 px-4 py-3">
+            <p class="text-xs font-semibold text-warning">Worker queue requis</p>
+            <p class="mt-1 text-[11px] leading-relaxed text-text-secondary">
+                La pipeline s'exécute en arrière-plan. Lancez
+                <code class="rounded bg-bg-surface px-1 py-0.5 font-mono text-[10px]">php artisan queue:listen</code>
+                (ou <code class="rounded bg-bg-surface px-1 py-0.5 font-mono text-[10px]">composer dev</code>)
+                sinon rien ne se passera après « Lancer la pipeline ».
+            </p>
+        </div>
+    @endif
+
     {{-- Lancement Discovery --}}
     <div class="mb-5">
         <x-maestro.discovery-button :project="$project" size="banner" />
@@ -59,7 +71,32 @@
                     id="kanban-{{ $status }}"
                 >
                     @forelse($columns[$status] as $task)
-                        <x-maestro.task-card :task="$task" :project="$project" />
+                        <div data-task-id="{{ $task->id }}" class="kanban-task-wrapper space-y-1.5">
+                            <x-maestro.task-card
+                                :task="$task"
+                                :project="$project"
+                                wire:click="openTask({{ $task->id }})"
+                                class="cursor-pointer transition-colors hover:border-primary/40"
+                            />
+
+                            @if($task->status->value === 'backlog')
+                                <button
+                                    type="button"
+                                    wire:click.stop="startTask({{ $task->id }})"
+                                    class="maestro-btn-primary w-full py-1.5 text-[10px]"
+                                >
+                                    ▶ Lancer la pipeline
+                                </button>
+                            @else
+                                <button
+                                    type="button"
+                                    wire:click.stop="openTask({{ $task->id }})"
+                                    class="maestro-btn-ghost w-full py-1 text-[10px]"
+                                >
+                                    Voir la pipeline →
+                                </button>
+                            @endif
+                        </div>
                     @empty
                         <x-maestro.empty-state title="Vide" icon="📭" class="py-6" />
                     @endforelse
@@ -67,6 +104,42 @@
             </div>
         @endforeach
     </div>
+
+    {{-- Panneau pipeline (depuis le Kanban) --}}
+    @if($openTask)
+        <div class="task-drawer-backdrop" wire:click="closeTask" aria-hidden="true"></div>
+        <div class="task-drawer" role="dialog" aria-labelledby="task-drawer-title">
+            <div class="flex items-start justify-between gap-3 border-b border-bg-overlay px-5 py-4">
+                <div class="min-w-0">
+                    <p class="text-[10px] uppercase tracking-wide text-text-muted">Pipeline en direct</p>
+                    <h2 id="task-drawer-title" class="truncate text-sm font-bold text-text-primary">{{ $openTask->title }}</h2>
+                    <div class="mt-2 flex flex-wrap gap-2">
+                        <x-maestro.badge kind="task_status" :value="$openTask->status" />
+                        <x-maestro.badge kind="task_type" :value="$openTask->type" />
+                        <x-maestro.badge kind="mode" :value="$openTask->mode" />
+                    </div>
+                </div>
+                <div class="flex shrink-0 gap-2">
+                    <a
+                        href="{{ route('projects.tasks.show', [$project, $openTask]) }}"
+                        class="maestro-btn-ghost px-2 py-1 text-[10px]"
+                    >
+                        Plein écran
+                    </a>
+                    <button type="button" wire:click="closeTask" class="maestro-btn-ghost px-2 py-1 text-[10px]">✕</button>
+                </div>
+            </div>
+
+            <div class="task-drawer-body grid min-h-0 flex-1 grid-cols-[minmax(240px,280px)_1fr] gap-0">
+                <div class="overflow-y-auto border-r border-bg-overlay p-4">
+                    @livewire('task-pipeline', ['task' => $openTask], key('drawer-pipeline-'.$openTask->id))
+                </div>
+                <div class="min-h-0 overflow-hidden p-4">
+                    @livewire('agent-output-viewer', ['task' => $openTask], key('drawer-output-'.$openTask->id))
+                </div>
+            </div>
+        </div>
+    @endif
 </div>
 
 @push('scripts')
@@ -81,7 +154,7 @@ function initKanbanSortable() {
         col._sortable = Sortable.create(col, {
             group: 'kanban',
             animation: 150,
-            draggable: '[data-task-id]',
+            draggable: '.kanban-task-wrapper',
             onEnd: () => {
                 const items = [...col.querySelectorAll('[data-task-id]')].map((el, i) => ({
                     task_id: parseInt(el.dataset.taskId),

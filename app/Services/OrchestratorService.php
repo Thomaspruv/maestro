@@ -7,6 +7,7 @@ use App\Enums\GateStatus;
 use App\Enums\GateType;
 use App\Enums\TaskMode;
 use App\Enums\TaskStatus;
+use App\Events\AgentRunUpdated;
 use App\Events\GatePending;
 use App\Events\TaskCompleted;
 use App\Jobs\ParallelAgentGroupJob;
@@ -14,7 +15,6 @@ use App\Jobs\RunAgentJob;
 use App\Models\AgentRun;
 use App\Models\Gate;
 use App\Models\Task;
-use App\Services\AgentCapabilities;
 
 class OrchestratorService
 {
@@ -55,13 +55,79 @@ class OrchestratorService
         }
 
         if (is_array($nextAgent)) {
-            ParallelAgentGroupJob::dispatch($task, $nextAgent);
+            $this->dispatchParallelGroup($task, $nextAgent);
 
             return;
         }
 
-        $queue = AgentCapabilities::queue(is_array($nextAgent) ? $nextAgent[0] : $nextAgent);
-        RunAgentJob::dispatch($task, $nextAgent)->onQueue($queue);
+        $this->dispatchAgentRun($task, $nextAgent);
+    }
+
+    public function dispatchAgentRun(Task $task, string $agentType, bool $skipAdvance = false): AgentRun
+    {
+        $run = AgentRun::create([
+            'task_id' => $task->id,
+            'agent_type' => $agentType,
+            'status' => AgentRunStatus::Pending,
+            'input' => [],
+            'model' => $this->resolveModelForAgent($task, $agentType),
+            'attempt' => 1,
+        ]);
+
+        $task->update([
+            'status' => TaskStatus::InProgress,
+            'current_agent' => $agentType,
+        ]);
+
+        broadcast(new AgentRunUpdated($run->fresh()));
+
+        $queue = AgentCapabilities::queue($agentType);
+        RunAgentJob::dispatch(
+            $task,
+            $agentType,
+            skipAdvance: $skipAdvance,
+            agentRunId: $run->id,
+        )->onQueue($queue);
+
+        return $run;
+    }
+
+    /**
+     * @param  array<int, string>  $agentTypes
+     */
+    private function dispatchParallelGroup(Task $task, array $agentTypes): void
+    {
+        $runIds = [];
+
+        foreach ($agentTypes as $agentType) {
+            $run = AgentRun::create([
+                'task_id' => $task->id,
+                'agent_type' => $agentType,
+                'status' => AgentRunStatus::Pending,
+                'input' => [],
+                'model' => $this->resolveModelForAgent($task, $agentType),
+                'attempt' => 1,
+            ]);
+
+            $runIds[$agentType] = $run->id;
+            broadcast(new AgentRunUpdated($run->fresh()));
+        }
+
+        $task->update([
+            'status' => TaskStatus::InProgress,
+            'current_agent' => $agentTypes[0],
+        ]);
+
+        ParallelAgentGroupJob::dispatch($task, $agentTypes, $runIds);
+    }
+
+    private function resolveModelForAgent(Task $task, string $agentType): string
+    {
+        $modelConfig = $task->project->model_config ?? [];
+
+        return $modelConfig[$agentType]
+            ?? config("maestro.default_models.{$agentType}")
+            ?? 'claude-sonnet-4-6';
     }
 
     /**

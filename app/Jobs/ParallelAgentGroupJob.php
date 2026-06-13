@@ -16,10 +16,12 @@ class ParallelAgentGroupJob implements ShouldQueue
 
     /**
      * @param  array<int, string>  $agentTypes
+     * @param  array<string, int>  $agentRunIds
      */
     public function __construct(
         public readonly Task $task,
         public readonly array $agentTypes,
+        public readonly array $agentRunIds = [],
     ) {
         $this->onQueue('agents');
     }
@@ -31,6 +33,7 @@ class ParallelAgentGroupJob implements ShouldQueue
                 task: $this->task,
                 agentType: $agentType,
                 skipAdvance: true,
+                agentRunId: $this->agentRunIds[$agentType] ?? null,
             ))
             ->all();
 

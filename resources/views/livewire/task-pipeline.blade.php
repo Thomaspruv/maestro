@@ -7,27 +7,72 @@
                 .listen('.GatePending', () => $wire.refreshTask());
         }
     "
+    @if($shouldPoll) wire:poll.5s="refreshTask" @endif
 >
-    <div class="mb-4 flex items-center justify-between">
-        <h2 class="text-xs font-semibold text-text-primary">Pipeline</h2>
+    <div class="mb-4 flex items-center justify-between gap-2">
+        <div>
+            <h2 class="text-xs font-semibold text-text-primary">Pipeline</h2>
+            @if($totalSteps > 0)
+                <p class="mt-0.5 text-[10px] text-text-muted">{{ $completedCount }}/{{ $totalSteps }} étapes terminées</p>
+            @endif
+        </div>
         @if($task->status->value === 'backlog')
             <x-maestro.button wire:click="startPipeline" class="text-[10px]">Démarrer</x-maestro.button>
         @endif
     </div>
+
+    @if($pendingGate && ! $runningRun)
+        <div class="pipeline-activity pipeline-activity-gate mb-4 rounded-lg border border-warning/30 bg-warning-muted/20 px-3 py-2.5">
+            <p class="text-[11px] font-semibold text-warning">Validation requise</p>
+            <p class="mt-1 text-[10px] text-text-secondary">
+                Gate « {{ $pendingGate->gate_type->value }} » — approuvez ou rejetez pour continuer la pipeline.
+            </p>
+        </div>
+    @elseif($runningRun)
+        <div class="pipeline-activity mb-4 rounded-lg border border-primary/30 bg-primary-muted/20 px-3 py-2.5">
+            <div class="flex items-start gap-2">
+                <span class="pipeline-spinner mt-0.5 shrink-0" aria-hidden="true"></span>
+                <div class="min-w-0">
+                    <p class="text-[11px] font-semibold text-primary-light">
+                        {{ $activityLabel ?? 'Agent' }} en cours
+                    </p>
+                    <p class="mt-0.5 text-[10px] text-text-secondary">{{ $activityMessage }}</p>
+                    @if($runningRun->started_at)
+                        <p class="mt-1 text-[10px] text-text-muted">
+                            Démarré {{ $runningRun->started_at->diffForHumans() }}
+                            @if($runningRun->attempt > 1)
+                                · tentative {{ $runningRun->attempt }}/3
+                            @endif
+                        </p>
+                    @endif
+                </div>
+            </div>
+        </div>
+    @elseif($task->status->value === 'in_progress')
+        <div class="pipeline-activity mb-4 rounded-lg border border-bg-overlay bg-bg-surface/80 px-3 py-2.5">
+            <p class="text-[10px] text-text-muted">Pipeline en cours — en attente du prochain agent…</p>
+        </div>
+    @endif
+
+    @if($shouldPoll)
+        <p class="mb-3 text-[10px] text-text-muted">Actualisation automatique toutes les 5 s.</p>
+    @endif
 
     <div class="relative space-y-0">
         @foreach($pipeline as $index => $agent)
             @php
                 $run = $runsByAgent[$agent] ?? null;
                 $label = $agentLabels[$agent] ?? ['emoji' => '🤖', 'name' => $agent];
-                $isActive = $task->current_agent?->value === $agent;
+                $isActive = $currentAgent === $agent;
                 $pillStatus = match ($run?->status->value ?? null) {
                     'running' => 'running',
                     'completed' => 'done',
                     'waiting_gate' => 'gate',
                     'failed' => 'error',
+                    'skipped' => 'done',
                     default => $isActive ? 'running' : 'waiting',
                 };
+                $duration = $run ? \App\Support\PipelineActivity::formatDuration($run) : null;
             @endphp
 
             <div
@@ -37,13 +82,17 @@
                     'cursor-pointer border-primary bg-primary-muted/30' => $run && $selectedRunId === $run->id,
                     'cursor-pointer border-bg-overlay hover:border-primary/30' => $run && $selectedRunId !== $run->id,
                     'border-bg-overlay opacity-60' => ! $run,
+                    'ring-1 ring-primary/40' => $isActive && $run,
                 ])
             >
                 @if($index < count($pipeline) - 1)
                     <div class="absolute left-[22px] top-10 h-full w-px bg-bg-overlay"></div>
                 @endif
 
-                <div class="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-bg-elevated text-sm">
+                <div @class([
+                    'flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-bg-elevated text-sm',
+                    'pipeline-agent-pulse' => $run?->status->value === 'running',
+                ])>
                     {{ $label['emoji'] }}
                 </div>
 
@@ -58,8 +107,22 @@
                             @endif
                         </x-maestro.pipeline-pill>
                     </div>
-                    @if($run?->cost)
-                        <p class="mt-0.5 text-[10px] text-text-muted">${{ number_format($run->cost, 4) }}</p>
+
+                    @if($run)
+                        <div class="mt-1 space-y-0.5 text-[10px] text-text-muted">
+                            @if($run->model)
+                                <p>{{ $run->model }}</p>
+                            @endif
+                            @if($duration)
+                                <p>Durée : {{ $duration }}</p>
+                            @endif
+                            @if($run->cost)
+                                <p class="text-text-secondary">${{ number_format($run->cost, 4) }}</p>
+                            @endif
+                            @if($run->status->value === 'failed' && $run->error_message)
+                                <p class="text-danger">{{ Str::limit($run->error_message, 120) }}</p>
+                            @endif
+                        </div>
                     @endif
                 </div>
             </div>
@@ -74,4 +137,10 @@
             @endif
         @endforeach
     </div>
+
+    @if($task->actual_cost > 0)
+        <div class="mt-4 rounded-lg border border-bg-overlay bg-bg-surface/50 px-3 py-2 text-[10px] text-text-muted">
+            Coût cumulé : <span class="font-semibold text-warning">${{ number_format($task->actual_cost, 4) }}</span>
+        </div>
+    @endif
 </div>

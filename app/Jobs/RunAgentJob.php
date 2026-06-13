@@ -46,6 +46,8 @@ class RunAgentJob implements ShouldQueue
             $run->update([
                 'status' => AgentRunStatus::Running,
                 'error_message' => null,
+                'input' => $this->buildInput(),
+                'started_at' => $run->started_at ?? now(),
             ]);
         } else {
             $run = AgentRun::create([

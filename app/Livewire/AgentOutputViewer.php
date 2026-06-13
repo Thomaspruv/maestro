@@ -7,6 +7,7 @@ use App\Models\Gate;
 use App\Models\Task;
 use App\Services\OrchestratorService;
 use App\Services\ProjectAgentSyncService;
+use App\Support\PipelineActivity;
 use Livewire\Attributes\On;
 use Livewire\Component;
 
@@ -24,8 +25,9 @@ class AgentOutputViewer extends Component
 
     public function mount(Task $task, ?int $selectedRunId = null): void
     {
-        $this->task = $task->load(['agentRuns.gates', 'gates']);
-        $this->selectedRunId = $selectedRunId ?? $this->task->agentRuns->last()?->id;
+        $this->task = $task->load(['agentRuns.gates', 'gates', 'project']);
+        $this->selectedRunId = $selectedRunId ?? PipelineActivity::runningRun($this->task)?->id
+            ?? $this->task->agentRuns->sortByDesc('id')->first()?->id;
         $this->loadOutput();
     }
 
@@ -40,7 +42,25 @@ class AgentOutputViewer extends Component
     #[On('echo:task.{task.id},AgentRunUpdated')]
     public function onAgentRunUpdated(): void
     {
-        $this->task->refresh()->load(['agentRuns.gates', 'gates']);
+        $this->refreshViewer();
+    }
+
+    #[On('echo:task.{task.id},GatePending')]
+    public function onGatePending(): void
+    {
+        $this->refreshViewer();
+    }
+
+    public function refreshViewer(): void
+    {
+        $this->task->refresh()->load(['agentRuns.gates', 'gates', 'project']);
+
+        $running = PipelineActivity::runningRun($this->task);
+        if ($running && $this->selectedRunId !== $running->id) {
+            $this->selectedRunId = $running->id;
+            $this->editMode = false;
+        }
+
         $this->loadOutput();
     }
 
@@ -82,7 +102,7 @@ class AgentOutputViewer extends Component
         }
 
         app(OrchestratorService::class)->advance($this->task->fresh());
-        $this->task->refresh()->load(['agentRuns.gates', 'gates']);
+        $this->refreshViewer();
     }
 
     public function rejectGate(int $gateId): void
@@ -114,7 +134,7 @@ class AgentOutputViewer extends Component
         );
 
         $this->gateFeedback = '';
-        $this->task->refresh()->load(['agentRuns.gates', 'gates']);
+        $this->refreshViewer();
     }
 
     public function render()
@@ -125,11 +145,15 @@ class AgentOutputViewer extends Component
             : null;
 
         $labelService = app(ProjectAgentSyncService::class);
+        $agentLabels = $labelService->resolveLabelsForUser($this->task->project->user);
 
         return view('livewire.agent-output-viewer', [
             'run' => $run,
             'pendingGate' => $pendingGate,
-            'agentLabels' => $labelService->resolveLabelsForUser($this->task->project->user),
+            'agentLabels' => $agentLabels,
+            'shouldPoll' => PipelineActivity::shouldPoll($this->task),
+            'activityMessage' => $run ? PipelineActivity::agentMessage($run->agent_type) : null,
+            'duration' => PipelineActivity::formatDuration($run),
         ]);
     }
 

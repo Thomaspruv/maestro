@@ -193,6 +193,19 @@
         @apply bg-danger-muted text-danger;
     }
 
+    .pipeline-spinner {
+        @apply inline-block h-4 w-4 rounded-full border-2 border-primary/30 border-t-primary-light;
+        animation: pipeline-spin 0.8s linear infinite;
+    }
+
+    .pipeline-agent-pulse {
+        animation: pulse-glow 1.5s infinite;
+    }
+
+    .pipeline-activity {
+        animation: pipeline-fade-in 0.3s ease-out;
+    }
+
     .maestro-empty-state {
         @apply flex flex-col items-center justify-center rounded-lg border border-dashed border-bg-overlay py-12 text-center text-text-muted;
     }
@@ -268,6 +281,28 @@
 @keyframes discovery-shimmer {
     0% { transform: translateX(-100%); }
     100% { transform: translateX(100%); }
+}
+
+@keyframes pipeline-spin {
+    to { transform: rotate(360deg); }
+}
+
+@keyframes pipeline-fade-in {
+    from { opacity: 0; transform: translateY(-4px); }
+    to { opacity: 1; transform: translateY(0); }
+}
+
+.task-drawer-backdrop {
+    @apply fixed inset-0 z-40 bg-black/70;
+}
+
+.task-drawer {
+    @apply fixed inset-y-0 right-0 z-50 flex w-[min(1100px,calc(100vw-220px))] flex-col border-l border-bg-overlay bg-bg-base shadow-2xl;
+    animation: pipeline-fade-in 0.2s ease-out;
+}
+
+.task-drawer-body {
+    height: calc(100vh - 88px);
 }
 
 @media (max-width: 1199px) {

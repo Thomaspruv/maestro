@@ -2,9 +2,12 @@
 
 namespace App\Livewire;
 
+use App\Enums\AgentRunStatus;
 use App\Models\Task;
 use App\Services\OrchestratorService;
+use App\Services\PipelineHealthService;
 use App\Services\ProjectAgentSyncService;
+use App\Support\PipelineActivity;
 use Livewire\Attributes\On;
 use Livewire\Component;
 
@@ -17,7 +20,7 @@ class TaskPipeline extends Component
     public function mount(Task $task): void
     {
         $this->task = $task->load(['agentRuns', 'gates', 'project']);
-        $this->selectedRunId = $this->task->agentRuns->last()?->id;
+        $this->syncSelectionToActiveAgent();
     }
 
     #[On('echo:task.{task.id},AgentRunUpdated')]
@@ -35,6 +38,7 @@ class TaskPipeline extends Component
     public function refreshTask(): void
     {
         $this->task->refresh()->load(['agentRuns', 'gates', 'project']);
+        $this->syncSelectionToActiveAgent();
     }
 
     public function selectRun(int $runId): void
@@ -53,17 +57,40 @@ class TaskPipeline extends Component
 
     public function render()
     {
-        $pipeline = app(OrchestratorService::class)->getPipelineForTask($this->task);
+        $orchestrator = app(OrchestratorService::class);
+        $pipeline = $orchestrator->getPipelineForTask($this->task);
         $runsByAgent = $this->task->agentRuns->keyBy(fn ($r) => $r->agent_type);
         $pendingGates = $this->task->gates->where('status', 'pending');
+        $health = app(PipelineHealthService::class)->forTask($this->task, $pipeline);
 
         $labelService = app(ProjectAgentSyncService::class);
+        $agentLabels = $labelService->resolveLabelsForUser($this->task->project->user);
 
         return view('livewire.task-pipeline', [
             'pipeline' => $pipeline,
             'runsByAgent' => $runsByAgent,
             'pendingGates' => $pendingGates,
-            'agentLabels' => $labelService->resolveLabelsForUser($this->task->project->user),
+            'agentLabels' => $agentLabels,
+            'health' => $health,
+            'shouldPoll' => PipelineActivity::shouldPoll($this->task),
+            'currentAgent' => $health['current_agent'],
         ]);
+    }
+
+    private function syncSelectionToActiveAgent(): void
+    {
+        $active = PipelineActivity::runningRun($this->task)
+            ?? $this->task->agentRuns->first(fn ($run) => $run->status === AgentRunStatus::Pending);
+
+        if ($active && $this->selectedRunId !== $active->id) {
+            $this->selectedRunId = $active->id;
+            $this->dispatch('agent-selected', runId: $active->id);
+        } elseif (! $this->selectedRunId && $this->task->agentRuns->isNotEmpty()) {
+            $last = $this->task->agentRuns->sortByDesc('id')->first();
+            $this->selectedRunId = $last?->id;
+            if ($last) {
+                $this->dispatch('agent-selected', runId: $last->id);
+            }
+        }
     }
 }

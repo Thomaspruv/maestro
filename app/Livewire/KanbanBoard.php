@@ -2,11 +2,11 @@
 
 namespace App\Livewire;
 
-use App\Enums\TaskPriority;
 use App\Enums\TaskStatus;
-use App\Enums\TaskType;
 use App\Models\Project;
 use App\Models\Task;
+use App\Services\OrchestratorService;
+use App\Support\PipelineActivity;
 use Livewire\Attributes\On;
 use Livewire\Component;
 
@@ -22,8 +22,7 @@ class KanbanBoard extends Component
 
     public string $filterPriority = '';
 
-    /** @var array<string, int> */
-    public array $columnCounts = [];
+    public ?int $openTaskId = null;
 
     public function mount(Project $project): void
     {
@@ -34,6 +33,38 @@ class KanbanBoard extends Component
     public function refreshBoard(): void
     {
         $this->project->refresh();
+    }
+
+    public function openTask(int $taskId): void
+    {
+        $task = Task::query()
+            ->where('project_id', $this->project->id)
+            ->findOrFail($taskId);
+
+        $this->authorize('view', $task);
+        $this->openTaskId = $taskId;
+    }
+
+    public function closeTask(): void
+    {
+        $this->openTaskId = null;
+    }
+
+    public function startTask(int $taskId, OrchestratorService $orchestrator): void
+    {
+        $task = Task::query()
+            ->where('project_id', $this->project->id)
+            ->findOrFail($taskId);
+
+        $this->authorize('update', $task);
+
+        $task->update([
+            'status' => TaskStatus::InProgress,
+            'current_agent' => null,
+        ]);
+
+        $orchestrator->advance($task->fresh());
+        $this->openTaskId = $taskId;
     }
 
     public function updateTaskStatus(int $taskId, string $status): void
@@ -93,11 +124,23 @@ class KanbanBoard extends Component
             'total_cost' => (float) $this->project->tasks()->sum('actual_cost'),
         ];
 
+        $openTask = $this->openTaskId
+            ? Task::query()
+                ->where('project_id', $this->project->id)
+                ->with(['agentRuns', 'gates.agentRun', 'project'])
+                ->find($this->openTaskId)
+            : null;
+
+        $needsQueueWorker = ! in_array(config('queue.default'), ['sync'], true);
+
         return view('livewire.kanban-board', [
             'columns' => $columns,
             'stats' => $stats,
-            'taskTypes' => TaskType::cases(),
-            'priorities' => TaskPriority::cases(),
+            'taskTypes' => \App\Enums\TaskType::cases(),
+            'priorities' => \App\Enums\TaskPriority::cases(),
+            'openTask' => $openTask,
+            'needsQueueWorker' => $needsQueueWorker,
+            'shouldPoll' => $this->polling || ($openTask && PipelineActivity::shouldPoll($openTask)),
         ]);
     }
 }
