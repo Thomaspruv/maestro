@@ -6,18 +6,24 @@ use App\Enums\AgentType;
 use App\Enums\ProjectStatus;
 use App\Enums\TaskMode;
 use App\Enums\TaskType;
+use App\Livewire\Concerns\InteractsWithGitHubRepositories;
 use App\Models\Project;
 use App\Models\ProjectAgent;
 use App\Models\ProjectWizardDraft;
+use App\Models\Task;
 use App\Models\UserAgent;
 use App\Services\CostEstimatorService;
+use App\Services\GitHubConnectionService;
 use App\Services\GitHubContextReader;
 use Database\Seeders\UserAgentSeeder;
 use Illuminate\Support\Facades\Auth;
+use Livewire\Attributes\On;
 use Livewire\Component;
 
 class ProjectWizard extends Component
 {
+    use InteractsWithGitHubRepositories;
+
     public int $step = 1;
 
     public string $name = '';
@@ -27,8 +33,6 @@ class ProjectWizard extends Component
     public string $github_repo = '';
 
     public string $github_branch = 'main';
-
-    public string $github_token = '';
 
     public bool $read_context_from_repo = false;
 
@@ -75,8 +79,9 @@ class ProjectWizard extends Component
             $this->description = $data['step1']['description'] ?? '';
             $this->github_repo = $data['step1']['github_repo'] ?? '';
             $this->github_branch = $data['step1']['github_branch'] ?? 'main';
-            $this->github_token = $data['step1']['github_token'] ?? session('github_oauth_token', '');
         }
+
+        $this->bootGithubRepositories();
 
         if (isset($data['step2'])) {
             $this->vision = $data['step2']['vision'] ?? '';
@@ -117,6 +122,13 @@ class ProjectWizard extends Component
         $this->refreshCostEstimate();
     }
 
+    #[On('github-connected')]
+    public function refreshGithubConnection(): void
+    {
+        Auth::user()->refresh();
+        $this->loadGithubRepositories();
+    }
+
     public function render()
     {
         return view('livewire.project-wizard', [
@@ -125,6 +137,8 @@ class ProjectWizard extends Component
             'taskModes' => TaskMode::cases(),
             'modelOptions' => array_keys(config('maestro.model_prices', [])),
             'progress' => ($this->step / 4) * 100,
+            'githubConnected' => Auth::user()->hasGithubConnection(),
+            'githubUsername' => Auth::user()->github_username,
         ])->layout('layouts.wizard', [
             'step' => $this->step,
             'progress' => ($this->step / 4) * 100,
@@ -134,32 +148,42 @@ class ProjectWizard extends Component
 
     public function saveStep1(): void
     {
+        $this->normalizeGithubRepoInput();
+
         $this->validate([
             'name' => ['required', 'string', 'max:255'],
             'description' => ['nullable', 'string', 'max:2000'],
             'github_repo' => ['required', 'string', 'regex:/^[\w.\-]+\/[\w.\-]+$/'],
             'github_branch' => ['required', 'string', 'max:255'],
-            'github_token' => ['nullable', 'string', 'min:10'],
         ], [
             'name.required' => 'Le nom du projet est obligatoire.',
             'github_repo.required' => 'Le dépôt GitHub est obligatoire (format owner/repo).',
             'github_repo.regex' => 'Format invalide — utilisez owner/repo (ex. mon-org/mon-projet).',
             'github_branch.required' => 'La branche par défaut est obligatoire.',
-            'github_token.min' => 'Le token GitHub doit contenir au moins 10 caractères, ou utilisez OAuth.',
         ]);
+
+        if (! Auth::user()->hasGithubConnection()) {
+            $this->addError('github_repo', 'Connectez votre compte GitHub dans Paramètres ou via le bouton ci-dessous.');
+
+            return;
+        }
+
+        $github = app(GitHubConnectionService::class);
 
         $stepData = [
             'name' => $this->name,
             'description' => $this->description,
-            'github_repo' => $this->github_repo,
+            'github_repo' => $github->normalizeRepo($this->github_repo),
             'github_branch' => $this->github_branch,
-            'github_token' => $this->github_token ?: session('github_oauth_token'),
         ];
 
-        if ($this->read_context_from_repo && $stepData['github_token']) {
+        $token = Auth::user()->github_token;
+
+        if ($this->read_context_from_repo && $token) {
             $prefilled = app(GitHubContextReader::class)->read(
-                $this->github_repo,
-                $stepData['github_token'],
+                $stepData['github_repo'],
+                $token,
+                $stepData['github_branch'],
             );
             $this->stack = $prefilled['stack'] ?? $this->stack;
             $this->conventions = $prefilled['conventions'] ?? $this->conventions;
@@ -236,7 +260,7 @@ class ProjectWizard extends Component
             'description' => $data['step1']['description'] ?? null,
             'github_repo' => $data['step1']['github_repo'],
             'github_branch' => $data['step1']['github_branch'],
-            'github_token' => $data['step1']['github_token'] ?? null,
+            'github_token' => null,
             'context' => $data['step2'],
             'pipeline_config' => $data['step3']['pipeline'],
             'gate_config' => $data['step3']['gates'],
@@ -297,7 +321,7 @@ class ProjectWizard extends Component
             'default_modes' => $this->modes,
         ]);
 
-        $draftTask = new \App\Models\Task([
+        $draftTask = new Task([
             'type' => TaskType::from($this->selectedTaskType),
             'mode' => TaskMode::from($this->modes[$this->selectedTaskType] ?? 'manual'),
             'project_id' => 0,

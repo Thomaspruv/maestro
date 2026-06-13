@@ -2,6 +2,7 @@
 
 namespace App\Http\Requests\Projects;
 
+use App\Services\GitHubConnectionService;
 use Illuminate\Foundation\Http\FormRequest;
 
 class StoreWizardStep1Request extends FormRequest
@@ -28,8 +29,11 @@ class StoreWizardStep1Request extends FormRequest
 
     protected function prepareForValidation(): void
     {
-        if (! $this->filled('github_token') && session()->has('github_oauth_token')) {
-            $this->merge(['github_token' => session('github_oauth_token')]);
+        if ($this->filled('github_repo')) {
+            $this->merge([
+                'github_repo' => app(GitHubConnectionService::class)
+                    ->normalizeRepo($this->input('github_repo')),
+            ]);
         }
     }
 }

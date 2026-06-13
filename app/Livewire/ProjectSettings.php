@@ -4,15 +4,24 @@ namespace App\Livewire;
 
 use App\Enums\TaskMode;
 use App\Enums\TaskType;
+use App\Livewire\Concerns\InteractsWithGitHubRepositories;
 use App\Models\Project;
 use App\Models\ProjectAgent;
+use App\Services\GitHubConnectionService;
 use App\Services\ProjectAgentSyncService;
 use Illuminate\Validation\Rule;
+use Livewire\Attributes\On;
 use Livewire\Component;
 
 class ProjectSettings extends Component
 {
+    use InteractsWithGitHubRepositories;
+
     public Project $project;
+
+    public string $github_repo = '';
+
+    public string $github_branch = 'main';
 
     public string $stack = '';
 
@@ -42,10 +51,21 @@ class ProjectSettings extends Component
 
     public ?int $expandedAgentId = null;
 
+    public ?string $githubStatusMessage = null;
+
     public function mount(Project $project): void
     {
         $this->authorize('update', $project);
-        $this->project = $project->load(['agents.promptHistories']);
+        $this->project = $project->load(['agents.promptHistories', 'user']);
+
+        $this->github_repo = $project->github_repo;
+        $this->github_branch = $project->github_branch ?? 'main';
+
+        if ($this->github_repo === '' || ! auth()->user()->hasGithubConnection()) {
+            $this->activeSection = 'github';
+        }
+
+        $this->bootGithubRepositories();
 
         $context = $project->context ?? [];
         $this->vision = $context['vision'] ?? '';
@@ -93,6 +113,46 @@ class ProjectSettings extends Component
         ]);
 
         session()->flash('success', 'Contexte du projet mis à jour.');
+    }
+
+    public function saveGithub(): void
+    {
+        $this->reset('githubStatusMessage');
+        $this->normalizeGithubRepoInput();
+
+        $this->validate([
+            'github_repo' => ['required', 'string', 'regex:/^[\w.\-]+\/[\w.\-]+$/'],
+            'github_branch' => ['required', 'string', 'max:255'],
+        ], [
+            'github_repo.required' => 'Le dépôt GitHub est obligatoire.',
+            'github_repo.regex' => 'Format invalide — utilisez owner/repo.',
+        ]);
+
+        if (! auth()->user()->hasGithubConnection() && ! $this->project->github_token) {
+            $this->addError('github_repo', 'Connectez votre compte GitHub (ci-dessus ou dans Paramètres) avant d\'enregistrer.');
+
+            return;
+        }
+
+        $normalizedRepo = app(GitHubConnectionService::class)->normalizeRepo($this->github_repo);
+
+        $this->project->update([
+            'github_repo' => $normalizedRepo,
+            'github_branch' => $this->github_branch,
+        ]);
+
+        $this->github_repo = $normalizedRepo;
+        $this->githubStatusMessage = "Dépôt enregistré : {$normalizedRepo} (branche {$this->github_branch}).";
+        session()->flash('success', 'Dépôt GitHub mis à jour.');
+    }
+
+    public function showGithubSection(): void
+    {
+        $this->activeSection = 'github';
+
+        if (auth()->user()->hasGithubConnection()) {
+            $this->loadGithubRepositories();
+        }
     }
 
     public function saveAgents(): void
@@ -148,6 +208,14 @@ class ProjectSettings extends Component
         $this->expandedAgentId = $this->expandedAgentId === $index ? null : $index;
     }
 
+    #[On('github-connected')]
+    public function refreshGithubConnection(): void
+    {
+        auth()->user()->refresh();
+        $this->activeSection = 'github';
+        $this->loadGithubRepositories();
+    }
+
     public function render()
     {
         $labelService = app(ProjectAgentSyncService::class);
@@ -157,6 +225,8 @@ class ProjectSettings extends Component
             'taskModes' => TaskMode::cases(),
             'modelOptions' => array_keys(config('maestro.model_prices', [])),
             'agentLabels' => $labelService->resolveLabelsForUser($this->project->user),
+            'githubConnected' => auth()->user()->hasGithubConnection(),
+            'githubUsername' => auth()->user()->github_username,
         ]);
     }
 }

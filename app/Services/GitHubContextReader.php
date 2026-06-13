@@ -70,12 +70,6 @@ class GitHubContextReader
      */
     private function parseRepo(string $githubRepo): array
     {
-        $parts = explode('/', $githubRepo, 2);
-
-        if (count($parts) !== 2) {
-            throw new \InvalidArgumentException("Format de repo GitHub invalide : {$githubRepo}");
-        }
-
-        return [$parts[0], $parts[1]];
+        return app(GitHubConnectionService::class)->parseRepo($githubRepo);
     }
 }

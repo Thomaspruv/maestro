@@ -87,6 +87,18 @@ class Project extends Model
         return 'uuid';
     }
 
+    public function hasGithubAccess(): bool
+    {
+        return filled($this->resolvedGithubToken());
+    }
+
+    public function resolvedGithubToken(): ?string
+    {
+        $this->loadMissing('user');
+
+        return $this->github_token ?? $this->user?->github_token;
+    }
+
     protected function casts(): array
     {
         return [

@@ -239,14 +239,20 @@ class DiscoveryChatService
      */
     private function buildProductRepoContext(Project $project, bool $includeCodeContext = false): string
     {
-        if (! $project->github_token || ! $project->github_repo) {
+        if (! $project->resolvedGithubToken() || ! $project->github_repo) {
+            return '';
+        }
+
+        $token = app(GitHubConnectionService::class)->resolveToken($project->user, $project);
+
+        if (! $token) {
             return '';
         }
 
         try {
             $files = $this->githubReader->read(
                 $project->github_repo,
-                $project->github_token,
+                $token,
                 $project->github_branch,
             );
         } catch (\Throwable) {

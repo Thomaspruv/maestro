@@ -12,17 +12,12 @@
 
             <div class="my-4 border-t border-bg-overlay pt-4">
                 <p class="maestro-section-title mb-3">Dépôt GitHub</p>
-                <x-maestro.input wire:model="github_repo" label="Repository (owner/repo)" placeholder="mon-org/mon-projet" required />
-                <x-maestro.input wire:model="github_branch" label="Branche par défaut" required />
-                <x-maestro.input wire:model="github_token" label="Token GitHub (optionnel si OAuth)" type="password" placeholder="ghp_..." />
-
-                <div class="mt-2 flex items-center gap-3">
-                    <label class="flex items-center gap-2 text-xs text-text-secondary">
-                        <input type="checkbox" wire:model="read_context_from_repo" class="rounded border-bg-overlay">
-                        Lire le contexte depuis le repo
-                    </label>
-                    <a href="{{ route('github.redirect') }}" class="text-xs text-primary-light hover:underline">OAuth GitHub</a>
-                </div>
+                <x-maestro.github-project-config
+                    :connect-redirect="route('projects.create')"
+                    :show-context-toggle="true"
+                    :github-connected="$githubConnected"
+                    :github-username="$githubUsername"
+                />
             </div>
 
             <div class="mt-4 flex justify-end gap-2">

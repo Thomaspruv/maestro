@@ -115,8 +115,14 @@ class GitHubService
 
     private function client(Project $project): Client
     {
+        $token = app(GitHubConnectionService::class)->resolveToken($project->user, $project);
+
+        if (! $token) {
+            throw new \RuntimeException('Aucun token GitHub disponible pour ce projet. Connectez GitHub dans Paramètres.');
+        }
+
         $client = new Client;
-        $client->authenticate($project->github_token, null, AuthMethod::ACCESS_TOKEN);
+        $client->authenticate($token, null, AuthMethod::ACCESS_TOKEN);
 
         return $client;
     }
@@ -139,12 +145,6 @@ class GitHubService
      */
     private function parseRepo(string $githubRepo): array
     {
-        $parts = explode('/', $githubRepo, 2);
-
-        if (count($parts) !== 2) {
-            throw new \InvalidArgumentException("Format de repo GitHub invalide : {$githubRepo}");
-        }
-
-        return [$parts[0], $parts[1]];
+        return app(GitHubConnectionService::class)->parseRepo($githubRepo);
     }
 }

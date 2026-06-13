@@ -1,19 +1,66 @@
 <div>
     {{-- Navigation sections --}}
     <div class="mb-5 flex gap-2 border-b border-bg-overlay pb-3">
-        @foreach(['context' => 'Contexte', 'agents' => 'Agents', 'pipeline' => 'Pipeline'] as $key => $label)
+        @foreach(['github' => 'Dépôt GitHub', 'context' => 'Contexte', 'agents' => 'Agents', 'pipeline' => 'Pipeline'] as $key => $label)
             <button
-                wire:click="$set('activeSection', '{{ $key }}')"
+                @if($key === 'github')
+                    wire:click="showGithubSection"
+                @else
+                    wire:click="$set('activeSection', '{{ $key }}')"
+                @endif
                 @class([
-                    'rounded-md px-3 py-1.5 text-xs font-semibold transition-colors',
+                    'inline-flex items-center gap-1.5 rounded-md px-3 py-1.5 text-xs font-semibold transition-colors',
                     'bg-primary-muted text-primary-light' => $activeSection === $key,
                     'text-text-secondary hover:text-text-primary' => $activeSection !== $key,
                 ])
             >
                 {{ $label }}
+                @if($key === 'github')
+                    @if($githubConnected)
+                        <span class="inline-block h-1.5 w-1.5 rounded-full bg-success" title="GitHub connecté"></span>
+                    @else
+                        <span class="inline-flex h-4 min-w-4 items-center justify-center rounded-full bg-warning/20 px-1 text-[9px] font-bold text-warning" title="GitHub non connecté">!</span>
+                    @endif
+                @endif
             </button>
         @endforeach
     </div>
+
+    {{-- Dépôt GitHub --}}
+    @if($activeSection === 'github')
+        <div class="maestro-card p-5">
+            <h2 class="mb-1 text-sm font-semibold text-text-primary">Dépôt GitHub</h2>
+            <p class="mb-4 text-[11px] leading-relaxed text-text-muted">
+                Votre compte GitHub (token) est lié à votre profil Maestro.
+                Ici, vous choisissez quel dépôt et quelle branche ce projet utilise.
+            </p>
+
+            @if($githubStatusMessage)
+                <div class="mb-4 rounded-lg border border-success/30 bg-success-muted/20 px-4 py-2 text-xs text-success">
+                    {{ $githubStatusMessage }}
+                </div>
+            @endif
+
+            <x-maestro.github-project-config
+                :connect-redirect="route('projects.settings.edit', $project)"
+                :github-connected="$githubConnected"
+                :github-username="$githubUsername"
+                :saved-repo="$project->github_repo"
+                :saved-branch="$project->github_branch"
+            />
+
+            <div class="mt-4 flex items-center justify-between gap-3">
+                @unless($githubConnected)
+                    <p class="text-[11px] text-text-muted">Connectez GitHub pour activer l'enregistrement.</p>
+                @endunless
+                <div class="ml-auto">
+                    <x-maestro.button wire:click="saveGithub" :disabled="! $githubConnected">
+                        Enregistrer le dépôt
+                    </x-maestro.button>
+                </div>
+            </div>
+        </div>
+    @endif
 
     {{-- Contexte --}}
     @if($activeSection === 'context')

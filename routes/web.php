@@ -1,7 +1,6 @@
 <?php
 
 use App\Http\Controllers\AgentRuns\AgentRunController;
-use App\Livewire\Actions\Logout;
 use App\Http\Controllers\Costs\CostController;
 use App\Http\Controllers\DashboardController;
 use App\Http\Controllers\Gates\GateController;
@@ -13,11 +12,14 @@ use App\Http\Controllers\Projects\ProjectSettingsController;
 use App\Http\Controllers\Projects\ProjectWizardController;
 use App\Http\Controllers\Settings\ApiKeyController;
 use App\Http\Controllers\Settings\BudgetController;
+use App\Http\Controllers\Settings\GitHubAccountController;
 use App\Http\Controllers\Settings\ProfileController;
 use App\Http\Controllers\Tasks\CostEstimatorController;
 use App\Http\Controllers\Tasks\TaskController;
 use App\Http\Controllers\Webhooks\GitHubWebhookController;
 use App\Http\Middleware\VerifyGitHubWebhook;
+use App\Livewire\Actions\Logout;
+use App\Models\Project;
 use Illuminate\Support\Facades\Route;
 
 Route::view('/', 'welcome');
@@ -40,6 +42,8 @@ Route::middleware(['auth', 'verified'])->group(function () {
         Route::put('/', [ProfileController::class, 'update'])->name('update');
         Route::put('/api-key', [ApiKeyController::class, 'update'])->name('api-key.update');
         Route::put('/budget', [BudgetController::class, 'update'])->name('budget.update');
+        Route::put('/github', [GitHubAccountController::class, 'update'])->name('github.update');
+        Route::delete('/github', [GitHubAccountController::class, 'disconnect'])->name('github.disconnect');
     });
 
     Route::prefix('projects')->name('projects.')->group(function () {
@@ -64,7 +68,7 @@ Route::middleware(['auth', 'verified'])->group(function () {
 
         Route::get('/{project}/costs', [CostController::class, 'index'])->name('costs.index');
 
-        Route::get('/{project}/discovery', fn (\App\Models\Project $project) => view('discovery.index', compact('project')))
+        Route::get('/{project}/discovery', fn (Project $project) => view('discovery.index', compact('project')))
             ->name('discovery');
 
         Route::prefix('{project}/tasks')->name('tasks.')->group(function () {

@@ -36,10 +36,11 @@ class ProjectWizardController extends Controller
 
         $prefilledContext = null;
 
-        if ($request->boolean('read_context_from_repo')) {
+        if ($request->boolean('read_context_from_repo') && auth()->user()->github_token) {
             $prefilledContext = app(GitHubContextReader::class)->read(
                 $request->validated('github_repo'),
-                $request->validated('github_token'),
+                auth()->user()->github_token,
+                $request->validated('github_branch'),
             );
 
             $data = $draft->data;
@@ -85,7 +86,7 @@ class ProjectWizardController extends Controller
             'description' => $data['step1']['description'] ?? null,
             'github_repo' => $data['step1']['github_repo'],
             'github_branch' => $data['step1']['github_branch'],
-            'github_token' => $data['step1']['github_token'] ?? null,
+            'github_token' => null,
             'context' => $data['step2'],
             'pipeline_config' => $data['step3']['pipeline'],
             'gate_config' => $data['step3']['gates'],

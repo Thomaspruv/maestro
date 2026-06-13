@@ -94,4 +94,14 @@ return [
 
     'anthropic_discovery_timeout' => 180,
 
+    /*
+    | Connexion GitHub utilisateur :
+    | - auto : token personnel en local, OAuth en production (si configuré)
+    | - pat  : token personnel uniquement (idéal en dev sans callback localhost)
+    | - oauth : redirection OAuth (nécessite GITHUB_CLIENT_ID/SECRET + callback URL)
+    */
+    'github_auth' => env('GITHUB_AUTH', 'auto'),
+
+    'github_oauth_in_local' => env('GITHUB_OAUTH_IN_LOCAL', false),
+
 ];

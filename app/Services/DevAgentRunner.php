@@ -59,11 +59,13 @@ class DevAgentRunner
 
     public function cloneOrPull(Project $project): string
     {
-        $path = config('maestro.repos_path').'/'.Str::of($project->github_repo)->replace('/', '_');
+        $project->loadMissing('user');
+        $github = app(GitHubConnectionService::class);
+        [$owner, $repo] = $github->parseRepo($project->github_repo);
+        $path = config('maestro.repos_path').'/'.Str::of("{$owner}/{$repo}")->replace('/', '_');
 
         if (! is_dir($path)) {
-            $token = $project->github_token;
-            $url = "https://{$token}@github.com/{$project->github_repo}.git";
+            $url = $github->repoCloneUrl($project, $project->user);
             Process::run(['git', 'clone', $url, $path])->throw();
         } else {
             Process::path($path)->run(['git', 'pull', 'origin', $project->github_branch])->throw();

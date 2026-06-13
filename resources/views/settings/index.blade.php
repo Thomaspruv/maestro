@@ -40,6 +40,16 @@
             </form>
         </div>
 
+        {{-- GitHub --}}
+        <div class="maestro-card p-5">
+            <h2 class="mb-1 text-sm font-semibold text-text-primary">GitHub</h2>
+            <p class="mb-4 text-[11px] text-text-muted">
+                Connectez votre compte pour que Maestro accède à vos dépôts (y compris privés).
+            </p>
+
+            <x-maestro.github-connect :redirect="route('settings.edit')" />
+        </div>
+
         {{-- Budget --}}
         <div class="maestro-card p-5">
             <h2 class="mb-4 text-sm font-semibold text-text-primary">Budget mensuel</h2>
