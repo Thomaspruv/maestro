@@ -1,0 +1,43 @@
+<?php
+
+namespace App\Http\Requests\Projects;
+
+use App\Enums\AgentType;
+use App\Enums\TaskMode;
+use App\Enums\TaskType;
+use Illuminate\Foundation\Http\FormRequest;
+use Illuminate\Validation\Rule;
+
+class StoreWizardStep3Request extends FormRequest
+{
+    public function authorize(): bool
+    {
+        return true;
+    }
+
+    /**
+     * @return array<string, mixed>
+     */
+    public function rules(): array
+    {
+        $taskTypes = array_column(TaskType::cases(), 'value');
+        $agentTypes = array_column(AgentType::cases(), 'value');
+        $rules = [
+            'pipeline' => ['required', 'array'],
+            'gates' => ['required', 'array'],
+            'modes' => ['required', 'array'],
+        ];
+
+        foreach ($taskTypes as $type) {
+            $rules["pipeline.{$type}"] = ['required', 'array'];
+            $rules["pipeline.{$type}.*"] = ['string', Rule::in($agentTypes)];
+            $rules["gates.{$type}"] = ['required', 'array'];
+            $rules["gates.{$type}.gate_specs"] = ['boolean'];
+            $rules["gates.{$type}.gate_tech"] = ['boolean'];
+            $rules["gates.{$type}.gate_merge"] = ['boolean'];
+            $rules["modes.{$type}"] = ['required', Rule::enum(TaskMode::class)];
+        }
+
+        return $rules;
+    }
+}

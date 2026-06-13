@@ -1,0 +1,135 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@layer base {
+    body {
+        @apply bg-bg-base text-text-secondary text-xs antialiased;
+    }
+}
+
+@layer components {
+    .maestro-sidebar {
+        @apply fixed left-0 top-0 z-40 h-screen w-[220px] border-r border-bg-overlay bg-bg-surface;
+    }
+
+    .maestro-topbar {
+        @apply flex h-12 items-center justify-between border-b border-bg-overlay bg-bg-surface px-5;
+    }
+
+    .maestro-content {
+        @apply ml-[220px] min-h-screen p-5;
+    }
+
+    .maestro-card {
+        @apply rounded-lg border border-bg-overlay bg-bg-elevated;
+    }
+
+    .maestro-btn-primary {
+        @apply inline-flex items-center justify-center rounded-md bg-primary px-3.5 py-1.5 text-xs font-semibold text-white transition-colors hover:bg-primary-light;
+    }
+
+    .maestro-btn-ghost {
+        @apply inline-flex items-center justify-center rounded-md border border-bg-overlay bg-transparent px-3.5 py-1.5 text-xs font-semibold text-text-secondary transition-colors hover:border-primary hover:text-text-primary;
+    }
+
+    .maestro-btn-danger {
+        @apply inline-flex items-center justify-center rounded-md border border-red-900 bg-danger-muted px-3.5 py-1.5 text-xs font-semibold text-danger;
+    }
+
+    .maestro-input {
+        @apply w-full rounded-md border border-bg-overlay bg-bg-surface px-2.5 py-2 text-xs text-text-primary placeholder:text-text-muted focus:border-primary focus:outline-none;
+    }
+
+    .maestro-label {
+        @apply mb-1 block text-[10px] font-bold uppercase tracking-wider text-text-muted;
+    }
+
+    .maestro-section-title {
+        @apply text-[10px] font-bold uppercase tracking-wider text-text-muted;
+    }
+
+    .maestro-stat-card {
+        @apply rounded-[10px] border border-bg-overlay bg-bg-surface px-4 py-3.5;
+    }
+
+    .maestro-nav-item {
+        @apply flex items-center gap-2 rounded-md px-3 py-2 text-xs text-text-secondary transition-colors hover:bg-primary-muted hover:text-primary-light;
+    }
+
+    .maestro-nav-item-active {
+        @apply bg-primary-muted text-primary-light;
+    }
+
+    .maestro-pipeline-pill {
+        @apply inline-flex items-center rounded-full px-1.5 py-px text-[8px] font-semibold;
+    }
+
+    .maestro-pill-waiting {
+        @apply bg-[#1e1e28] text-[#555];
+    }
+
+    .maestro-pill-running {
+        @apply bg-primary-muted text-primary-light;
+        animation: pulse-glow 1.5s infinite;
+    }
+
+    .maestro-pill-done {
+        @apply bg-success-muted text-success;
+    }
+
+    .maestro-pill-gate {
+        @apply bg-warning-muted text-warning;
+    }
+
+    .maestro-pill-error {
+        @apply bg-danger-muted text-danger;
+    }
+
+    .maestro-empty-state {
+        @apply flex flex-col items-center justify-center rounded-lg border border-dashed border-bg-overlay py-12 text-center text-text-muted;
+    }
+
+    .maestro-gate-block {
+        @apply rounded-lg border border-yellow-900/50 bg-warning-muted px-3 py-2;
+        animation: gate-pulse 2s infinite;
+    }
+
+    .maestro-progress-bar {
+        @apply h-1.5 overflow-hidden rounded-full bg-bg-overlay;
+    }
+
+    .maestro-progress-fill {
+        @apply h-full rounded-full bg-gradient-to-r from-primary to-primary-light transition-all duration-300;
+    }
+
+    .desktop-only-message {
+        @apply fixed inset-0 z-50 hidden items-center justify-center bg-bg-base p-8 text-center lg:flex xl:hidden;
+    }
+}
+
+@keyframes pulse-glow {
+    0%, 100% { box-shadow: 0 0 0 0 rgba(124, 58, 237, 0.4); }
+    50% { box-shadow: 0 0 8px 2px rgba(124, 58, 237, 0.3); }
+}
+
+@keyframes gate-pulse {
+    0%, 100% { box-shadow: 0 0 0 0 rgba(250, 204, 21, 0.2); }
+    50% { box-shadow: 0 0 12px 2px rgba(250, 204, 21, 0.15); }
+}
+
+@media (max-width: 1199px) {
+    .maestro-sidebar,
+    .maestro-content {
+        display: none !important;
+    }
+    .desktop-only-message {
+        display: flex !important;
+    }
+}
+
+@media (min-width: 1200px) {
+    .desktop-only-message {
+        display: none !important;
+    }
+}
