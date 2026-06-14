@@ -15,6 +15,7 @@ use App\Http\Controllers\Settings\BudgetController;
 use App\Http\Controllers\Settings\GitHubAccountController;
 use App\Http\Controllers\Settings\ProfileController;
 use App\Http\Controllers\Tasks\CostEstimatorController;
+use App\Http\Controllers\Tasks\PipelineCockpitController;
 use App\Http\Controllers\Tasks\TaskController;
 use App\Http\Controllers\Webhooks\GitHubWebhookController;
 use App\Http\Middleware\VerifyGitHubWebhook;
@@ -82,6 +83,7 @@ Route::middleware(['auth', 'verified'])->group(function () {
             Route::post('/{task}/abandon', [TaskController::class, 'abandon'])->name('abandon');
             Route::delete('/{task}', [TaskController::class, 'destroy'])->name('destroy');
             Route::get('/{task}/estimate', [CostEstimatorController::class, 'estimate'])->name('estimate');
+            Route::get('/{task}/cockpit', [PipelineCockpitController::class, 'show'])->name('cockpit');
         });
     });
 

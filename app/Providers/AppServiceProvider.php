@@ -28,6 +28,12 @@ class AppServiceProvider extends ServiceProvider
      */
     public function boot(): void
     {
+        // Force SQLite in-memory for testing
+        if ($this->app->environment('testing')) {
+            config(['database.default' => 'sqlite']);
+            config(['database.connections.sqlite.database' => ':memory:']);
+        }
+
         Event::listen(CommandStarting::class, function (CommandStarting $event): void {
             ProtectDevDatabase::guardArtisanCommand($event->command);
         });

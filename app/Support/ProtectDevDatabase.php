@@ -35,6 +35,10 @@ class ProtectDevDatabase
             return false;
         }
 
+        if (app()->environment('testing')) {
+            return false;
+        }
+
         $connection ??= (string) config('database.default');
         $driver = (string) config("database.connections.{$connection}.driver");
         $database = (string) config("database.connections.{$connection}.database");
@@ -76,6 +80,11 @@ class ProtectDevDatabase
         }
 
         if (! self::isProtectedDevConnection()) {
+            return;
+        }
+
+        // Allow destructive commands if running under PHPUnit/Pest
+        if (defined('RUNNING_TESTS')) {
             return;
         }
 
