@@ -4,7 +4,6 @@ namespace App\Services;
 
 use App\Models\Project;
 use App\Models\User;
-use App\Models\UserAgent;
 
 class DiscoveryChatService
 {
@@ -41,7 +40,7 @@ class DiscoveryChatService
         $enrichedMessage = $fullDiscovery
             ? $this->enrichWithDiscoverySources($this->enrichMessageWithUrls($message, fastFetch: true))
             : $this->enrichMessageWithUrls($message);
-        $model = $this->resolveModel($project, $user);
+        $model = AgentCapabilities::resolveModel('discovery', $project);
         $systemBlocks = $this->buildSystemBlocks($project, $fullDiscovery);
 
         $conversation = array_merge($history, [
@@ -354,22 +353,5 @@ class DiscoveryChatService
         }
 
         return implode("\n\n", $sections)."\n\n[Question de l'utilisateur]\n".$message;
-    }
-
-    private function resolveModel(Project $project, User $user): string
-    {
-        $modelConfig = $project->model_config ?? [];
-
-        if (isset($modelConfig['discovery'])) {
-            return $modelConfig['discovery'];
-        }
-
-        $userAgent = UserAgent::query()
-            ->where('user_id', $user->id)
-            ->where('slug', 'discovery')
-            ->first();
-
-        return $userAgent?->model
-            ?? config('maestro.default_models.discovery', 'claude-sonnet-4-6');
     }
 }

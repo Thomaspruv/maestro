@@ -65,4 +65,25 @@ class UserAgentSeeder
                 ]);
         }
     }
+
+    /**
+     * Met à jour les modèles built-in depuis config/maestro.php (ex. Dev → Haiku).
+     */
+    public static function refreshBuiltinModels(User $user): void
+    {
+        $slugs = array_merge(
+            array_map(fn (AgentType $type) => $type->value, AgentType::cases()),
+            self::EXTRA_BUILTIN_SLUGS,
+        );
+
+        foreach ($slugs as $slug) {
+            UserAgent::query()
+                ->where('user_id', $user->id)
+                ->where('slug', $slug)
+                ->where('is_builtin', true)
+                ->update([
+                    'model' => config('maestro.default_models.'.$slug, 'claude-sonnet-4-6'),
+                ]);
+        }
+    }
 }

@@ -33,7 +33,7 @@ return [
         'ux' => 'claude-sonnet-4-6',
         'tech_lead' => 'claude-sonnet-4-6',
         'security' => 'claude-haiku-4-5',
-        'dev' => 'claude-sonnet-4-6',
+        'dev' => 'claude-haiku-4-5',
         'qa' => 'claude-haiku-4-5',
         'pr_expert' => 'claude-haiku-4-5',
         'doc' => 'claude-haiku-4-5',
@@ -103,5 +103,18 @@ return [
     'github_auth' => env('GITHUB_AUTH', 'auto'),
 
     'github_oauth_in_local' => env('GITHUB_OAUTH_IN_LOCAL', false),
+
+    'claude_code_path' => env('CLAUDE_CODE_PATH'),
+
+    /*
+    | Runner Dev Agent : cli (Claude Code local) ou api (Anthropic tool use, portable).
+    */
+    'dev_runner' => env('MAESTRO_DEV_RUNNER', 'cli'),
+
+    'dev_claude_timeout' => (int) env('MAESTRO_DEV_CLAUDE_TIMEOUT', 900),
+
+    'dev_api_timeout' => (int) env('MAESTRO_DEV_API_TIMEOUT', 120),
+
+    'dev_api_max_iterations' => (int) env('MAESTRO_DEV_API_MAX_ITERATIONS', 40),
 
 ];

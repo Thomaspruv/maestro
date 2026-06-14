@@ -34,6 +34,10 @@ class RunAgentJob implements ShouldQueue
         public ?int $agentRunId = null,
     ) {
         $this->onQueue(AgentCapabilities::queue($this->agentType));
+
+        if (AgentCapabilities::isDev($this->agentType)) {
+            $this->timeout = (int) config('maestro.dev_claude_timeout', 900) + 60;
+        }
     }
 
     public function handle(
@@ -52,6 +56,7 @@ class RunAgentJob implements ShouldQueue
                 'status' => AgentRunStatus::Running,
                 'error_message' => null,
                 'input' => $this->buildInput(),
+                'model' => $run->model ?: $this->resolveModel(),
                 'started_at' => $run->started_at ?? now(),
             ]);
         } else {
@@ -113,13 +118,6 @@ class RunAgentJob implements ShouldQueue
             'error' => $e->getMessage(),
         ]);
 
-        if ($run->attempt < 3) {
-            $run->increment('attempt');
-            $this->release(30);
-
-            return;
-        }
-
         $run->update([
             'status' => AgentRunStatus::Failed,
             'error_message' => $e->getMessage(),
@@ -133,6 +131,32 @@ class RunAgentJob implements ShouldQueue
 
         broadcast(new AgentRunUpdated($run->fresh()));
         $notifications->notifyFailure($this->task, $run);
+    }
+
+    public function failed(?Throwable $exception): void
+    {
+        if (! $this->agentRunId) {
+            return;
+        }
+
+        $run = AgentRun::query()->find($this->agentRunId);
+
+        if (! $run || $run->status !== AgentRunStatus::Running) {
+            return;
+        }
+
+        $run->update([
+            'status' => AgentRunStatus::Failed,
+            'error_message' => $exception?->getMessage() ?? 'Job interrompu par la queue.',
+            'completed_at' => now(),
+        ]);
+
+        $this->task->update([
+            'status' => TaskStatus::Failed,
+            'current_agent' => null,
+        ]);
+
+        broadcast(new AgentRunUpdated($run->fresh()));
     }
 
     /**
@@ -158,10 +182,7 @@ class RunAgentJob implements ShouldQueue
     private function resolveModel(): string
     {
         $this->task->loadMissing('project');
-        $modelConfig = $this->task->project->model_config ?? [];
 
-        return $modelConfig[$this->agentType]
-            ?? config("maestro.default_models.{$this->agentType}")
-            ?? 'claude-sonnet-4-6';
+        return AgentCapabilities::resolveModel($this->agentType, $this->task->project);
     }
 }

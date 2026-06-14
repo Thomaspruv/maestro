@@ -5,6 +5,7 @@ namespace App\Services;
 use App\Enums\AgentRunStatus;
 use App\Enums\PipelineHealthState;
 use App\Enums\TaskStatus;
+use App\Models\AgentRun;
 use App\Models\Project;
 use App\Models\Task;
 use App\Support\PipelineActivity;
@@ -94,6 +95,24 @@ class PipelineHealthService
                 $currentStep,
                 $currentAgent,
                 'warning',
+            );
+        }
+
+        $staleRunning = $this->findStaleRunningRun($task, $runningRun);
+
+        if ($staleRunning) {
+            $label = config("maestro.agent_labels.{$staleRunning->agent_type}.name", $staleRunning->agent_type);
+
+            return $this->build(
+                PipelineHealthState::Failed,
+                'Pipeline interrompue',
+                "L'agent {$label} semble bloqué (job crashé sans mise à jour). Relancez l'agent ou consultez les logs.",
+                $progress,
+                $completedCount,
+                $totalSteps,
+                $currentStep,
+                $staleRunning->agent_type,
+                'danger',
             );
         }
 
@@ -307,6 +326,31 @@ class PipelineHealthService
             fn ($run) => $run->status === AgentRunStatus::Pending
                 && $run->created_at?->lt(now()->subSeconds(30))
         );
+    }
+
+    private function findStaleRunningRun(Task $task, ?AgentRun $runningRun): ?AgentRun
+    {
+        if (! $runningRun?->started_at) {
+            return null;
+        }
+
+        if ($runningRun->started_at->gt(now()->subSeconds(90))) {
+            return null;
+        }
+
+        if ($this->pendingAgentQueueSize() > 0) {
+            return null;
+        }
+
+        if (config('queue.default') === 'database') {
+            return $runningRun;
+        }
+
+        if ($this->isHorizonRunning()) {
+            return null;
+        }
+
+        return $runningRun;
     }
 
     private function pendingAgentQueueSize(): int

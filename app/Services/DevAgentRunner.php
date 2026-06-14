@@ -13,6 +13,9 @@ class DevAgentRunner
 {
     public function __construct(
         private readonly GitHubService $github,
+        private readonly DevPromptBuilder $promptBuilder,
+        private readonly DevRunnerApi $runnerApi,
+        private readonly DevOutputStreamer $streamer,
     ) {}
 
     public function run(AgentRun $run): AgentResult
@@ -25,7 +28,8 @@ class DevAgentRunner
         $this->github->createBranch($project, $branch);
         $this->checkoutBranch($repoPath, $branch);
 
-        $this->runClaudeCode($repoPath, $this->buildDevPrompt($run));
+        $prompt = $this->promptBuilder->build($run);
+        $this->implementCode($run, $repoPath, $prompt, $project);
 
         $maxAttempts = (int) config('maestro.max_dev_attempts', 3);
         $validation = new ValidationResult(false, ['init' => 'Validation non exécutée']);
@@ -45,10 +49,8 @@ class DevAgentRunner
             }
 
             if ($attempt < $maxAttempts) {
-                $this->runClaudeCode(
-                    $repoPath,
-                    "Les validations ont échoué :\n{$validation->errorsAsString()}\n\nCorrige le code pour que tout passe.",
-                );
+                $fixPrompt = "Les validations ont échoué :\n{$validation->errorsAsString()}\n\nCorrige le code pour que tout passe.";
+                $this->implementCode($run, $repoPath, $fixPrompt, $project);
             }
         }
 
@@ -96,30 +98,25 @@ class DevAgentRunner
         return new ValidationResult($errors === [], $errors);
     }
 
+    private function implementCode(AgentRun $run, string $repoPath, string $prompt, Project $project): void
+    {
+        if ($this->usesApiRunner()) {
+            $this->runnerApi->implement($run, $repoPath, $prompt, $project);
+
+            return;
+        }
+
+        $this->runClaudeCode($run, $repoPath, $prompt, $project);
+    }
+
+    private function usesApiRunner(): bool
+    {
+        return config('maestro.dev_runner', 'cli') === 'api';
+    }
+
     private function buildBranchName(AgentRun $run): string
     {
         return 'feature/'.$run->task->uuid.'-'.Str::slug($run->task->title);
-    }
-
-    private function buildDevPrompt(AgentRun $run): string
-    {
-        $inputs = $run->input ?? [];
-        $sections = [
-            "## Tâche : {$run->task->title}",
-            $run->task->description ?? '',
-        ];
-
-        if ($inputs !== []) {
-            $sections[] = '## Contexte des agents précédents';
-
-            foreach ($inputs as $agent => $output) {
-                $sections[] = "### {$agent}\n{$output}";
-            }
-        }
-
-        $sections[] = 'Implémente les changements dans le dépôt local. Respecte les conventions du projet.';
-
-        return implode("\n\n", $sections);
     }
 
     private function checkoutBranch(string $repoPath, string $branch): void
@@ -132,11 +129,90 @@ class DevAgentRunner
         Process::path($repoPath)->run(['git', 'push', '-u', 'origin', $branch])->throw();
     }
 
-    private function runClaudeCode(string $repoPath, string $prompt): void
+    private function runClaudeCode(AgentRun $run, string $repoPath, string $prompt, Project $project): void
     {
-        Process::path($repoPath)
-            ->timeout(180)
-            ->run(['claude', '--print', '--dangerously-skip-permissions', $prompt])
-            ->throw();
+        $project->loadMissing('user');
+        $apiKey = $project->user?->claude_api_key;
+
+        if (! filled($apiKey)) {
+            throw new \RuntimeException(
+                'Clé API Claude manquante. Renseignez-la dans Paramètres → Clé API Claude — l\'agent Dev l\'utilise aussi.'
+            );
+        }
+
+        $binary = $this->resolveClaudeBinary();
+        $model = AgentCapabilities::resolveModel('dev', $project, $run);
+        $promptFile = $this->writePromptFile($run, $prompt);
+        $timeout = (int) config('maestro.dev_claude_timeout', 900);
+        $output = '';
+
+        try {
+            Process::path($repoPath)
+                ->timeout($timeout)
+                ->env(['ANTHROPIC_API_KEY' => $apiKey])
+                ->run(
+                    ['bash', '-c', 'cat '.escapeshellarg($promptFile).' | '.escapeshellarg($binary).' --print --model '.escapeshellarg($model).' --dangerously-skip-permissions'],
+                    function (string $type, string $buffer) use ($run, &$output) {
+                        $output .= $buffer;
+                        $this->streamer->flush($run, $output);
+                    },
+                )
+                ->throw();
+        } finally {
+            @unlink($promptFile);
+        }
+
+        $this->streamer->flush($run, $output, force: true);
+    }
+
+    private function writePromptFile(AgentRun $run, string $prompt): string
+    {
+        $directory = storage_path('app/dev-prompts');
+
+        if (! is_dir($directory) && ! mkdir($directory, 0755, true) && ! is_dir($directory)) {
+            throw new \RuntimeException('Impossible de créer le dossier dev-prompts.');
+        }
+
+        $path = $directory.'/'.$run->id.'_'.uniqid('', true).'.md';
+        file_put_contents($path, $prompt);
+
+        return $path;
+    }
+
+    private function resolveClaudeBinary(): string
+    {
+        $configured = config('maestro.claude_code_path');
+
+        if (filled($configured)) {
+            if (! is_executable($configured)) {
+                throw new \RuntimeException(
+                    "Claude Code introuvable à {$configured}. Vérifiez CLAUDE_CODE_PATH dans .env."
+                );
+            }
+
+            return $configured;
+        }
+
+        $home = getenv('HOME') ?: '';
+        $candidates = glob($home.'/Library/Application Support/Claude/claude-code/*/claude.app/Contents/MacOS/claude') ?: [];
+        rsort($candidates);
+
+        foreach ($candidates as $candidate) {
+            if (is_executable($candidate)) {
+                return $candidate;
+            }
+        }
+
+        foreach (['claude', '/usr/local/bin/claude', $home.'/.local/bin/claude'] as $candidate) {
+            $resolved = trim((string) shell_exec('command -v '.escapeshellarg($candidate).' 2>/dev/null'));
+
+            if ($resolved !== '' && is_executable($resolved)) {
+                return $resolved;
+            }
+        }
+
+        throw new \RuntimeException(
+            'CLI Claude Code introuvable. Installez Claude Code, définissez CLAUDE_CODE_PATH, ou passez MAESTRO_DEV_RUNNER=api.'
+        );
     }
 }

@@ -76,10 +76,6 @@ class CostEstimatorService
 
     private function resolveModel(Task $task, string $agent): string
     {
-        $modelConfig = $task->project->model_config ?? [];
-
-        return $modelConfig[$agent]
-            ?? config("maestro.default_models.{$agent}")
-            ?? 'claude-sonnet-4-6';
+        return AgentCapabilities::resolveModel($agent, $task->project);
     }
 }

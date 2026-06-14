@@ -25,7 +25,7 @@ class AgentRunnerService
         }
 
         $agent = AgentFactory::make($run->agent_type, $project);
-        $model = $this->resolveModel($project, $run->agent_type);
+        $model = AgentCapabilities::resolveModel($run->agent_type, $project, $run);
 
         $response = $this->anthropic->createMessage(
             apiKey: $user->claude_api_key,
@@ -129,14 +129,5 @@ class AgentRunnerService
         }
 
         return (string) $value;
-    }
-
-    private function resolveModel(Project $project, string $agentType): string
-    {
-        $modelConfig = $project->model_config ?? [];
-
-        return $modelConfig[$agentType]
-            ?? config("maestro.default_models.{$agentType}")
-            ?? 'claude-sonnet-4-6';
     }
 }

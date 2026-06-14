@@ -17,9 +17,19 @@ class GitHubService
     public function createBranch(Project $project, string $branchName): void
     {
         [$owner, $repo] = $this->parseRepo($project->github_repo);
+        $client = $this->client($project);
+
+        try {
+            $client->git()->references()->show($owner, $repo, "heads/{$branchName}");
+
+            return;
+        } catch (RuntimeException) {
+            // Branche absente — on la crée ci-dessous.
+        }
+
         $sha = $this->getDefaultBranchSha($project);
 
-        $this->client($project)->git()->references()->create($owner, $repo, [
+        $client->git()->references()->create($owner, $repo, [
             'ref' => "refs/heads/{$branchName}",
             'sha' => $sha,
         ]);
@@ -115,9 +125,11 @@ class GitHubService
 
     private function client(Project $project): Client
     {
+        $project->loadMissing('user');
+
         $token = app(GitHubConnectionService::class)->resolveToken($project->user, $project);
 
-        if (! $token) {
+        if (! filled($token)) {
             throw new \RuntimeException('Aucun token GitHub disponible pour ce projet. Connectez GitHub dans Paramètres.');
         }
 

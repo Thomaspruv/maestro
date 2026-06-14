@@ -127,11 +127,9 @@ class OrchestratorService
 
     private function resolveModelForAgent(Task $task, string $agentType): string
     {
-        $modelConfig = $task->project->model_config ?? [];
+        $task->loadMissing('project');
 
-        return $modelConfig[$agentType]
-            ?? config("maestro.default_models.{$agentType}")
-            ?? 'claude-sonnet-4-6';
+        return AgentCapabilities::resolveModel($agentType, $task->project);
     }
 
     /**

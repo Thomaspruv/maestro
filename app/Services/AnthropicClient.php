@@ -112,4 +112,73 @@ class AnthropicClient
             ],
         ];
     }
+
+    /**
+     * @param  array<int, array<string, mixed>>  $systemBlocks
+     * @param  array<int, array<string, mixed>>  $messages
+     * @param  array<int, array<string, mixed>>  $tools
+     * @return array{
+     *     text: string,
+     *     content: array<int, array<string, mixed>>,
+     *     stop_reason: string,
+     *     usage: array{input_tokens: int, output_tokens: int, cache_read_input_tokens: int},
+     * }
+     */
+    public function createMessageWithTools(
+        string $apiKey,
+        string $model,
+        array $systemBlocks,
+        array $messages,
+        array $tools,
+        int $maxTokens = 8192,
+        ?int $timeoutSeconds = null,
+    ): array {
+        $timeoutSeconds ??= (int) config('maestro.dev_api_timeout', 120);
+
+        $payload = [
+            'model' => $model,
+            'max_tokens' => $maxTokens,
+            'messages' => $messages,
+            'tools' => $tools,
+        ];
+
+        if ($systemBlocks !== []) {
+            $payload['system'] = $systemBlocks;
+        }
+
+        try {
+            $response = $this->http->post(self::API_URL, [
+                'headers' => [
+                    'x-api-key' => $apiKey,
+                    'anthropic-version' => '2023-06-01',
+                    'content-type' => 'application/json',
+                    'anthropic-beta' => 'tools-2024-04-04',
+                ],
+                'json' => $payload,
+                'timeout' => $timeoutSeconds,
+            ]);
+        } catch (GuzzleException $e) {
+            throw new \RuntimeException('Anthropic API request failed: '.$e->getMessage(), 0, $e);
+        }
+
+        $data = json_decode((string) $response->getBody(), true, 512, JSON_THROW_ON_ERROR);
+
+        $text = '';
+        foreach ($data['content'] ?? [] as $block) {
+            if (($block['type'] ?? '') === 'text') {
+                $text .= $block['text'] ?? '';
+            }
+        }
+
+        return [
+            'text' => $text,
+            'content' => $data['content'] ?? [],
+            'stop_reason' => (string) ($data['stop_reason'] ?? 'end_turn'),
+            'usage' => [
+                'input_tokens' => (int) ($data['usage']['input_tokens'] ?? 0),
+                'output_tokens' => (int) ($data['usage']['output_tokens'] ?? 0),
+                'cache_read_input_tokens' => (int) ($data['usage']['cache_read_input_tokens'] ?? 0),
+            ],
+        ];
+    }
 }
