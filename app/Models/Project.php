@@ -50,6 +50,14 @@ class Project extends Model
     }
 
     /**
+     * @return BelongsTo<User, $this>
+     */
+    public function owner(): BelongsTo
+    {
+        return $this->user();
+    }
+
+    /**
      * @return HasMany<ProjectAgent, $this>
      */
     public function agents(): HasMany

@@ -11,10 +11,13 @@ use App\Models\Project;
 use App\Models\Task;
 use App\Services\OrchestratorService;
 use App\Services\PipelineCockpitService;
+use Illuminate\Foundation\Testing\RefreshDatabase;
 use Tests\TestCase;
 
 class PipelineCockpitServiceTest extends TestCase
 {
+    use RefreshDatabase;
+
     private PipelineCockpitService $service;
 
     private OrchestratorService $orchestrator;

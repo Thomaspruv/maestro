@@ -12,5 +12,15 @@ abstract class TestCase extends BaseTestCase
         parent::setUp();
 
         ProtectDevDatabase::enforceTestingConnection();
+        $this->setUpTestingEnvironment();
+    }
+
+    private function setUpTestingEnvironment(): void
+    {
+        foreach (ProtectDevDatabase::testingProcessEnvironment() as $key => $value) {
+            putenv("{$key}={$value}");
+            $_ENV[$key] = $value;
+            $_SERVER[$key] = $value;
+        }
     }
 }
