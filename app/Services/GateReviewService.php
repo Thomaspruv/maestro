@@ -4,6 +4,7 @@ namespace App\Services;
 
 use App\Enums\GateStatus;
 use App\Enums\TaskStatus;
+use App\Events\GateStatusUpdated;
 use App\Jobs\RunAgentJob;
 use App\Models\Gate;
 
@@ -20,16 +21,18 @@ class GateReviewService
             $gate->agentRun->update(['edited_output' => $editedOutput]);
         }
 
+        broadcast(new GateStatusUpdated($gate->fresh()));
         app(OrchestratorService::class)->advance($gate->task->fresh(), afterGateApproval: true);
     }
 
-    public function reject(Gate $gate, string $feedback): void
+    public function reject(Gate $gate, string $feedback = 'Rejected by user'): void
     {
         $maxRegenerations = (int) config('maestro.max_gate_regenerations', 2);
 
         if ($gate->regeneration_count >= $maxRegenerations) {
             $gate->update(['status' => GateStatus::Rejected]);
             $gate->task->update(['status' => TaskStatus::Failed]);
+            broadcast(new GateStatusUpdated($gate->fresh()));
 
             return;
         }
@@ -40,6 +43,7 @@ class GateReviewService
             'regeneration_count' => $gate->regeneration_count + 1,
         ]);
 
+        broadcast(new GateStatusUpdated($gate->fresh()));
         RunAgentJob::dispatch(
             $gate->task,
             $gate->agentRun->agent_type,

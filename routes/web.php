@@ -82,6 +82,7 @@ Route::middleware(['auth', 'verified'])->group(function () {
             Route::post('/{task}/abandon', [TaskController::class, 'abandon'])->name('abandon');
             Route::delete('/{task}', [TaskController::class, 'destroy'])->name('destroy');
             Route::get('/{task}/estimate', [CostEstimatorController::class, 'estimate'])->name('estimate');
+            Route::get('/{task}/cockpit', [TaskController::class, 'cockpit'])->name('cockpit');
         });
     });
 

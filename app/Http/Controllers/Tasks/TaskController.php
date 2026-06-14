@@ -111,4 +111,12 @@ class TaskController extends Controller
             ->route('projects.show', $project)
             ->with('success', 'Tâche supprimée.');
     }
+
+    public function cockpit(Project $project, Task $task): View
+    {
+        $this->authorize('update', $task);
+        abort_unless($task->project_id === $project->id, 404);
+
+        return view('tasks.cockpit', compact('project', 'task'));
+    }
 }

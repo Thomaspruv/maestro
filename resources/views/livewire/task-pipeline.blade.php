@@ -13,9 +13,18 @@
         <div>
             <h2 class="text-xs font-semibold text-text-primary">Pipeline</h2>
         </div>
-        @if($task->status->value === 'backlog')
-            <x-maestro.button wire:click="startPipeline" class="text-[10px]">Démarrer</x-maestro.button>
-        @endif
+        <div class="flex items-center gap-2">
+            @if($task->status->value !== 'backlog')
+                <a href="{{ route('projects.tasks.cockpit', [$task->project_id, $task->uuid]) }}"
+                   class="text-[10px] text-text-muted hover:text-primary-light"
+                   title="Afficher le cockpit temps réel">
+                    📊
+                </a>
+            @endif
+            @if($task->status->value === 'backlog')
+                <x-maestro.button wire:click="startPipeline" class="text-[10px]">Démarrer</x-maestro.button>
+            @endif
+        </div>
     </div>
 
     <x-maestro.pipeline-health-banner :health="$health" />

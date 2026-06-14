@@ -4,6 +4,7 @@ namespace App\Jobs;
 
 use App\Enums\AgentRunStatus;
 use App\Enums\TaskStatus;
+use App\Events\AgentCostRecorded;
 use App\Events\AgentRunUpdated;
 use App\Models\AgentRun;
 use App\Models\Task;
@@ -105,7 +106,9 @@ class RunAgentJob implements ShouldQueue
             ]);
 
             $this->task->increment('actual_cost', $result->cost);
-            broadcast(new AgentRunUpdated($run->fresh()));
+            $run = $run->fresh();
+            broadcast(new AgentRunUpdated($run));
+            broadcast(new AgentCostRecorded($run));
 
             if (AgentCapabilities::postAction($this->agentType) === 'open_pr') {
                 OpenPullRequestJob::dispatch($this->task->fresh());

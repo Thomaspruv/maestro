@@ -78,7 +78,7 @@ class PipelineCockpit extends Component
         }
     }
 
-    public function rejectGate(int $gateId): void
+    public function rejectGate(int $gateId, string $feedback = ''): void
     {
         $gate = Gate::where('task_id', $this->task->id)->findOrFail($gateId);
         $this->authorize('update', $gate);
@@ -91,7 +91,8 @@ class PipelineCockpit extends Component
         }
 
         try {
-            app(GateReviewService::class)->reject($gate);
+            $feedbackText = trim($feedback) ?: 'Rejected by user';
+            app(GateReviewService::class)->reject($gate, $feedbackText);
             $this->refreshSnapshot();
             $this->dispatch('gate-reviewed');
         } catch (\Exception $e) {
