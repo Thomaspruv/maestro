@@ -222,7 +222,7 @@ return [
             'maxJobs' => 0,
             'memory' => 256,
             'tries' => 1,
-            'timeout' => 120,
+            'timeout' => 300,
             'nice' => 0,
         ],
         'supervisor-dev-agent' => [

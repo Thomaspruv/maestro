@@ -20,7 +20,13 @@ class DevOutputStreamer
         }
 
         $run->update(['output' => $output]);
-        broadcast(new AgentRunUpdated($run->fresh()));
+
+        $fresh = $run->fresh();
+
+        if ($fresh !== null) {
+            broadcast(new AgentRunUpdated($fresh));
+        }
+
         $lastFlush[$runId] = $now;
     }
 }

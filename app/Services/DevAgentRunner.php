@@ -6,6 +6,7 @@ use App\DTOs\AgentResult;
 use App\Exceptions\DevAgentMaxAttemptsException;
 use App\Models\AgentRun;
 use App\Models\Project;
+use App\Support\ProtectDevDatabase;
 use Illuminate\Support\Facades\Process;
 use Illuminate\Support\Str;
 
@@ -66,11 +67,19 @@ class DevAgentRunner
         [$owner, $repo] = $github->parseRepo($project->github_repo);
         $path = config('maestro.repos_path').'/'.Str::of("{$owner}/{$repo}")->replace('/', '_');
 
+        $branch = $project->github_branch;
+
         if (! is_dir($path)) {
             $url = $github->repoCloneUrl($project, $project->user);
             Process::run(['git', 'clone', $url, $path])->throw();
         } else {
-            Process::path($path)->run(['git', 'pull', 'origin', $project->github_branch])->throw();
+            $git = fn (array $command) => Process::path($path)->run($command)->throw();
+
+            // Un run précédent peut laisser des modifications locales sur une branche feature.
+            $git(['git', 'fetch', 'origin', $branch]);
+            $git(['git', 'reset', '--hard']);
+            $git(['git', 'clean', '-fd']);
+            $git(['git', 'checkout', '-B', $branch, "origin/{$branch}"]);
         }
 
         return $path;
@@ -85,7 +94,9 @@ class DevAgentRunner
             $errors['php'] = trim($artisan->errorOutput());
         }
 
-        $pest = Process::path($repoPath)->run(['./vendor/bin/pest', '--no-coverage', '--compact']);
+        $pest = Process::path($repoPath)
+            ->env(ProtectDevDatabase::testingProcessEnvironment())
+            ->run(['./vendor/bin/pest', '--no-coverage', '--compact']);
         if ($pest->failed()) {
             $errors['tests'] = trim($pest->output());
         }

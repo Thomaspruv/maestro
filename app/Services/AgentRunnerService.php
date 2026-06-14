@@ -26,6 +26,10 @@ class AgentRunnerService
 
         $agent = AgentFactory::make($run->agent_type, $project);
         $model = AgentCapabilities::resolveModel($run->agent_type, $project, $run);
+        $timeout = (int) config('maestro.anthropic_timeout', 180);
+        $maxTokens = (int) config("maestro.agent_max_tokens.{$run->agent_type}", 4096);
+
+        set_time_limit($timeout + 60);
 
         $response = $this->anthropic->createMessage(
             apiKey: $user->claude_api_key,
@@ -42,6 +46,8 @@ class AgentRunnerService
                 ],
             ],
             userMessage: $agent->buildPrompt($run),
+            maxTokens: $maxTokens,
+            timeoutSeconds: $timeout,
         );
 
         $usage = $response['usage'];

@@ -3,6 +3,7 @@
 namespace App\Agents;
 
 use App\Models\AgentRun;
+use App\Services\DevPromptBuilder;
 
 abstract class BaseAgent
 {
@@ -19,6 +20,7 @@ abstract class BaseAgent
     {
         $task = $run->task;
         $inputs = $run->input ?? [];
+        $condenser = app(DevPromptBuilder::class);
 
         $sections = [
             '## Tâche',
@@ -35,7 +37,15 @@ abstract class BaseAgent
             $sections[] = "\n## Outputs des agents précédents";
 
             foreach ($inputs as $agent => $output) {
-                $sections[] = "### {$agent}\n{$output}";
+                if ($agent === 'feedback' || ! is_string($output)) {
+                    continue;
+                }
+
+                $sections[] = "### {$agent}\n".$condenser->condense($output);
+            }
+
+            if (isset($inputs['feedback']) && is_string($inputs['feedback'])) {
+                $sections[] = "### feedback\n".$condenser->condense($inputs['feedback']);
             }
         }
 

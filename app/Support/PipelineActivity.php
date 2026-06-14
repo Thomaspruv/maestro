@@ -82,4 +82,45 @@ class PipelineActivity
 
         return self::runningRun($task)?->agent_type;
     }
+
+    /**
+     * Échec bloquant : ignore les runs failed déjà rattrapés par un succès ou un retry en cours.
+     */
+    public static function blockingFailedRun(Task $task): ?AgentRun
+    {
+        if (! $task->relationLoaded('agentRuns')) {
+            $task->load('agentRuns');
+        }
+
+        if ($task->status === TaskStatus::Failed) {
+            return $task->agentRuns->first(
+                fn (AgentRun $run) => $run->status === AgentRunStatus::Failed
+            );
+        }
+
+        $failedRuns = $task->agentRuns
+            ->where('status', AgentRunStatus::Failed)
+            ->sortBy('id');
+
+        foreach ($failedRuns as $failed) {
+            $laterRuns = $task->agentRuns->filter(
+                fn (AgentRun $run) => $run->agent_type === $failed->agent_type && $run->id > $failed->id
+            );
+
+            $recovered = $laterRuns->contains(
+                fn (AgentRun $run) => in_array($run->status, [
+                    AgentRunStatus::Completed,
+                    AgentRunStatus::Skipped,
+                    AgentRunStatus::Running,
+                    AgentRunStatus::Pending,
+                ], true)
+            );
+
+            if (! $recovered) {
+                return $failed;
+            }
+        }
+
+        return null;
+    }
 }

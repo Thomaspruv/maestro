@@ -15,7 +15,7 @@ trap cleanup SIGINT SIGTERM
 
 export NODE_ENV=development
 
-QUEUE_CONNECTION="$(grep -E '^QUEUE_CONNECTION=' .env 2>/dev/null | cut -d= -f2- | tr -d '"'"' | tr -d ' ' || true)"
+QUEUE_CONNECTION="$(grep -E '^QUEUE_CONNECTION=' .env 2>/dev/null | cut -d= -f2- | sed -e 's/^[" ]*//' -e 's/[" ]*$//' || true)"
 QUEUE_CONNECTION="${QUEUE_CONNECTION:-database}"
 
 echo "▶ Maestro — démarrage dev (QUEUE_CONNECTION=${QUEUE_CONNECTION})"

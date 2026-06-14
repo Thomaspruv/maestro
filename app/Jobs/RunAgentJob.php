@@ -24,7 +24,15 @@ class RunAgentJob implements ShouldQueue
 
     public int $timeout = 120;
 
-    public int $tries = 1;
+    public function tries(): int
+    {
+        return (int) config('maestro.agent_job_tries', 2);
+    }
+
+    public function backoff(): array
+    {
+        return [(int) config('maestro.agent_job_retry_delay', 15)];
+    }
 
     public function __construct(
         public readonly Task $task,
@@ -37,6 +45,8 @@ class RunAgentJob implements ShouldQueue
 
         if (AgentCapabilities::isDev($this->agentType)) {
             $this->timeout = (int) config('maestro.dev_claude_timeout', 900) + 60;
+        } else {
+            $this->timeout = (int) config('maestro.anthropic_timeout', 180) + 120;
         }
     }
 
@@ -105,8 +115,36 @@ class RunAgentJob implements ShouldQueue
                 $orchestrator->advance($this->task->fresh());
             }
         } catch (Throwable $e) {
+            if ($this->isTransientFailure($e)) {
+                Log::warning('RunAgentJob transient failure, will retry', [
+                    'task_id' => $this->task->id,
+                    'agent_type' => $this->agentType,
+                    'attempt' => $this->attempts(),
+                    'error' => $e->getMessage(),
+                ]);
+
+                throw $e;
+            }
+
             $this->handleFailure($run, $notifications, $e);
         }
+    }
+
+    private function isTransientFailure(Throwable $e): bool
+    {
+        if ($this->attempts() >= $this->tries()) {
+            return false;
+        }
+
+        $message = strtolower($e->getMessage());
+
+        return str_contains($message, 'curl error 28')
+            || str_contains($message, 'operation timed out')
+            || str_contains($message, '529')
+            || str_contains($message, 'overloaded')
+            || str_contains($message, '429')
+            || str_contains($message, 'connection reset')
+            || str_contains($message, 'connection refused');
     }
 
     private function handleFailure(AgentRun $run, NotificationService $notifications, Throwable $e): void

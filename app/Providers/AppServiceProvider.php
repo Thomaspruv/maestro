@@ -4,8 +4,10 @@ namespace App\Providers;
 
 use App\Enums\ProjectStatus;
 use App\Models\Project;
+use App\Support\ProtectDevDatabase;
 use Database\Seeders\UserAgentSeeder;
 use Illuminate\Auth\Events\Registered;
+use Illuminate\Console\Events\CommandStarting;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Event;
 use Illuminate\Support\Facades\View;
@@ -26,6 +28,10 @@ class AppServiceProvider extends ServiceProvider
      */
     public function boot(): void
     {
+        Event::listen(CommandStarting::class, function (CommandStarting $event): void {
+            ProtectDevDatabase::guardArtisanCommand($event->command);
+        });
+
         Event::listen(Registered::class, function (Registered $event): void {
             UserAgentSeeder::seedForUser($event->user);
         });

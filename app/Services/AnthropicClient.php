@@ -68,7 +68,7 @@ class AnthropicClient
         int $maxTokens = 4096,
         ?int $timeoutSeconds = null,
     ): array {
-        $timeoutSeconds ??= (int) config('maestro.anthropic_timeout', 60);
+        $timeoutSeconds ??= (int) config('maestro.anthropic_timeout', 180);
 
         $payload = [
             'model' => $model,

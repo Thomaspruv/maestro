@@ -11,7 +11,7 @@
         <div class="mb-4 rounded-lg border px-4 py-3 {{ $bannerClass }}">
             <p class="text-xs font-semibold">{{ $workerBanner['title'] }}</p>
             <p class="mt-1 text-[11px] leading-relaxed opacity-90">{{ $workerBanner['message'] }}</p>
-            @if($workerBanner['tone'] === 'danger')
+            @if(($workerBanner['show_horizon_link'] ?? false) && config('queue.default') === 'redis')
                 <a href="{{ url('/horizon') }}" target="_blank" class="mt-2 inline-block text-[10px] font-semibold underline">
                     Ouvrir Horizon →
                 </a>

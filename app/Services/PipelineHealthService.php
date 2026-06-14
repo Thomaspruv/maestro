@@ -47,7 +47,7 @@ class PipelineHealthService
         $pendingGate = $task->gates->where('status', 'pending')->first();
         $pendingRun = $task->agentRuns->first(fn ($run) => $run->status === AgentRunStatus::Pending);
         $runningRun = PipelineActivity::runningRun($task);
-        $failedRun = $task->agentRuns->first(fn ($run) => $run->status === AgentRunStatus::Failed);
+        $failedRun = PipelineActivity::blockingFailedRun($task);
         $currentAgent = PipelineActivity::currentAgentType($task)
             ?? $pendingRun?->agent_type
             ?? $runningRun?->agent_type;
@@ -223,65 +223,79 @@ class PipelineHealthService
     }
 
     /**
-     * @return array{tone: string, title: string, message: string, show: bool}
+     * @return array{tone: string, title: string, message: string, show: bool, show_horizon_link: bool}
      */
     public function kanbanWorkerBanner(Project $project): array
     {
+        $hidden = [
+            'tone' => 'success',
+            'title' => '',
+            'message' => '',
+            'show' => false,
+            'show_horizon_link' => false,
+        ];
+
         if (config('queue.default') === 'sync') {
-            return ['tone' => 'success', 'title' => '', 'message' => '', 'show' => false];
+            return $hidden;
         }
 
-        $inProgressCount = $project->tasks()->where('status', TaskStatus::InProgress)->count();
-        $pendingJobs = $this->pendingAgentQueueSize();
-        $queueDriver = config('queue.default');
-        $horizonRunning = $this->isHorizonRunning();
+        if (! $this->projectNeedsWorker($project)) {
+            return $hidden;
+        }
 
-        if ($queueDriver === 'database' && $pendingJobs > 0) {
+        $queueDriver = config('queue.default');
+
+        if ($queueDriver === 'database') {
             return [
                 'tone' => 'danger',
-                'title' => 'Worker queue inactif (driver database)',
-                'message' => 'Vos jobs sont en base (`QUEUE_CONNECTION=database`) mais Horizon n\'écoute que Redis. Relancez `./start-dev` ou lancez `php artisan queue:work database --queue=agents,dev-agent,default`.',
+                'title' => 'Worker queue inactif',
+                'message' => 'Des jobs attendent un worker. Lancez `./start-dev` ou `php artisan queue:work database --queue=agents,dev-agent,default`.',
                 'show' => true,
+                'show_horizon_link' => false,
             ];
         }
 
-        if (! $horizonRunning && ($inProgressCount > 0 || $pendingJobs > 0)) {
+        if ($queueDriver === 'redis' && ! $this->isHorizonRunning()) {
             return [
                 'tone' => 'danger',
                 'title' => 'Horizon inactif — pipelines bloquées',
-                'message' => 'Des tâches attendent un worker. Lancez `./start-dev` ou `php artisan horizon` (driver redis).',
+                'message' => 'Des tâches attendent un worker. Lancez `./start-dev` ou `php artisan horizon`.',
                 'show' => true,
+                'show_horizon_link' => true,
             ];
         }
 
-        if ($horizonRunning && $inProgressCount > 0) {
-            return [
-                'tone' => 'success',
-                'title' => 'Pipeline active',
-                'message' => $inProgressCount.' tâche(s) en cours — worker actif.',
-                'show' => true,
-            ];
+        return $hidden;
+    }
+
+    private function projectNeedsWorker(Project $project): bool
+    {
+        if (config('queue.default') === 'database' && $this->isDatabaseQueueStalled()) {
+            return true;
         }
 
-        if ($queueDriver === 'database' && ! $horizonRunning && $inProgressCount === 0) {
-            return [
-                'tone' => 'warning',
-                'title' => 'Queue database',
-                'message' => 'Driver database : utilisez `./start-dev` (queue:work) ou passez `QUEUE_CONNECTION=redis` pour Horizon.',
-                'show' => true,
-            ];
+        if (config('queue.default') === 'redis' && $this->pendingAgentQueueSize() > 0 && ! $this->isHorizonRunning()) {
+            return true;
         }
 
-        if (! $horizonRunning && $queueDriver === 'redis') {
-            return [
-                'tone' => 'warning',
-                'title' => 'Horizon non démarré',
-                'message' => 'Pour exécuter les pipelines, lancez `composer dev` ou `php artisan horizon` dans un terminal.',
-                'show' => true,
-            ];
+        $inProgressTasks = $project->tasks()
+            ->where('status', TaskStatus::InProgress)
+            ->with('agentRuns')
+            ->get();
+
+        foreach ($inProgressTasks as $task) {
+            if ($this->hasStalePendingRuns($task)) {
+                return true;
+            }
+
+            $runningRun = PipelineActivity::runningRun($task);
+
+            if ($this->findStaleRunningRun($task, $runningRun)) {
+                return true;
+            }
         }
 
-        return ['tone' => 'success', 'title' => '', 'message' => '', 'show' => false];
+        return false;
     }
 
     private function isWorkerBlocked(Task $task): bool
@@ -294,10 +308,8 @@ class PipelineHealthService
             fn ($run) => $run->status === AgentRunStatus::Pending
         );
 
-        $pendingJobs = $this->pendingAgentQueueSize();
-
         if (config('queue.default') === 'database') {
-            if ($pendingJobs > 0) {
+            if ($this->isDatabaseQueueStalled()) {
                 return true;
             }
 
@@ -308,16 +320,54 @@ class PipelineHealthService
             return false;
         }
 
-        return $hasPendingRuns || $pendingJobs > 0;
+        return $hasPendingRuns
+            || $this->pendingAgentQueueSize() > 0;
+    }
+
+    /**
+     * Jobs en attente sans worker actif (driver database).
+     */
+    private function isDatabaseQueueStalled(): bool
+    {
+        if (config('queue.default') !== 'database') {
+            return false;
+        }
+
+        if ($this->pendingUnreservedQueueSize() === 0) {
+            return false;
+        }
+
+        return ! $this->hasActiveDatabaseWorker();
+    }
+
+    private function hasActiveDatabaseWorker(): bool
+    {
+        return DB::table('jobs')
+            ->whereIn('queue', ['agents', 'dev-agent', 'default'])
+            ->whereNotNull('reserved_at')
+            ->where('reserved_at', '>=', now()->subSeconds(120)->timestamp)
+            ->exists();
+    }
+
+    private function pendingUnreservedQueueSize(): int
+    {
+        if (config('queue.default') !== 'database') {
+            return 0;
+        }
+
+        return (int) DB::table('jobs')
+            ->whereIn('queue', ['agents', 'dev-agent', 'default'])
+            ->whereNull('reserved_at')
+            ->count();
     }
 
     private function blockedWorkerMessage(): string
     {
         if (config('queue.default') === 'database') {
-            return 'Jobs en attente dans la base (`QUEUE_CONNECTION=database`). Relancez `./start-dev` ou exécutez `php artisan queue:work database --queue=agents,dev-agent,default`. Horizon seul ne suffit pas.';
+            return 'Aucun worker ne consomme la queue. Lancez `composer dev` ou `./start-dev.sh` dans un terminal et laissez-le ouvert pendant que vous travaillez.';
         }
 
-        return 'Horizon n\'est pas démarré ou n\'écoute pas Redis. Lancez `./start-dev` ou `php artisan horizon`.';
+        return 'Horizon n\'est pas démarré. Lancez `composer dev` ou `php artisan horizon`.';
     }
 
     private function hasStalePendingRuns(Task $task): bool
@@ -334,7 +384,7 @@ class PipelineHealthService
             return null;
         }
 
-        if ($runningRun->started_at->gt(now()->subSeconds(90))) {
+        if ($runningRun->started_at->gt(now()->subSeconds($this->staleRunningThresholdSeconds()))) {
             return null;
         }
 
@@ -342,8 +392,8 @@ class PipelineHealthService
             return null;
         }
 
-        if (config('queue.default') === 'database') {
-            return $runningRun;
+        if ($this->hasActiveDatabaseWorker()) {
+            return null;
         }
 
         if ($this->isHorizonRunning()) {
@@ -351,6 +401,14 @@ class PipelineHealthService
         }
 
         return $runningRun;
+    }
+
+    private function staleRunningThresholdSeconds(): int
+    {
+        $apiTimeout = (int) config('maestro.anthropic_timeout', 180);
+        $devTimeout = (int) config('maestro.dev_claude_timeout', 900);
+
+        return max($apiTimeout, $devTimeout) + 120;
     }
 
     private function pendingAgentQueueSize(): int

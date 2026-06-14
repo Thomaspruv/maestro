@@ -90,9 +90,37 @@ return [
         'https://www.producthunt.com/feed',
     ],
 
-    'anthropic_timeout' => 60,
+    'agent_max_tokens' => [
+        'pm'        => 8192,
+        'ux'        => 8192,
+        'tech_lead' => 8192,
+        'security'  => 8192,
+        'qa'        => 4096,
+        'pr_expert' => 4096,
+        'doc'       => 2048,
+    ],
 
-    'anthropic_discovery_timeout' => 180,
+    'anthropic_timeout' => (int) env('ANTHROPIC_TIMEOUT', 180),
+
+    'anthropic_discovery_timeout' => (int) env('ANTHROPIC_DISCOVERY_TIMEOUT', 180),
+
+    /*
+    | Troncature des outputs agents précédents dans les prompts API (~2000 tokens).
+    | Réduit latence, timeouts et coût input — même logique que DevPromptBuilder.
+    */
+    'agent_output_max_chars' => (int) env('MAESTRO_AGENT_OUTPUT_MAX_CHARS', 8000),
+
+    /*
+    | Retry automatique sur erreurs transitoires API (timeout, surcharge).
+    | 2 essais max = 1 retry gratuit en cas de pic réseau Anthropic.
+    */
+    'agent_job_tries' => (int) env('MAESTRO_AGENT_JOB_TRIES', 2),
+
+    'agent_job_retry_delay' => (int) env('MAESTRO_AGENT_JOB_RETRY_DELAY', 15),
+
+    'queue_worker_timeout' => (int) env('MAESTRO_QUEUE_WORKER_TIMEOUT', 960),
+
+    'queue_retry_after' => (int) env('MAESTRO_QUEUE_RETRY_AFTER', 960),
 
     /*
     | Connexion GitHub utilisateur :
