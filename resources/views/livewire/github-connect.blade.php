@@ -1,5 +1,5 @@
 <div class="space-y-3">
-    @if($successMessage)
+    @if(filled($successMessage ?? null))
         <div class="rounded-lg border border-success/30 bg-success-muted/20 px-4 py-2 text-xs text-success">
             {{ $successMessage }}
         </div>
