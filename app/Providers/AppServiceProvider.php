@@ -3,6 +3,7 @@
 namespace App\Providers;
 
 use App\Enums\ProjectStatus;
+use App\Livewire\GitHubConnect;
 use App\Models\Project;
 use App\Support\ProtectDevDatabase;
 use Database\Seeders\UserAgentSeeder;
@@ -12,6 +13,7 @@ use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Event;
 use Illuminate\Support\Facades\View;
 use Illuminate\Support\ServiceProvider;
+use Livewire\Livewire;
 use Opcodes\LogViewer\Facades\LogViewer;
 
 class AppServiceProvider extends ServiceProvider
@@ -29,6 +31,8 @@ class AppServiceProvider extends ServiceProvider
      */
     public function boot(): void
     {
+        Livewire::component('github-connect', GitHubConnect::class);
+
         LogViewer::auth(fn ($request) => $request->user() !== null);
 
         Event::listen(CommandStarting::class, function (CommandStarting $event): void {
