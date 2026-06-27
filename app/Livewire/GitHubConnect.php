@@ -4,7 +4,6 @@ namespace App\Livewire;
 
 use App\Services\GitHubConnectionService;
 use Illuminate\Support\Facades\Auth;
-use Livewire\Attributes\Locked;
 use Livewire\Component;
 
 class GitHubConnect extends Component
@@ -15,23 +14,16 @@ class GitHubConnect extends Component
 
     public string $github_token = '';
 
-    public bool $connected = false;
-
-    #[Locked]
-    public ?string $username = null;
-
-    public ?string $successMessage = null;
-
     public function mount(bool $compact = false, ?string $redirect = null): void
     {
         $this->compact = $compact;
         $this->redirect = $redirect ?? url()->current();
-        $this->syncFromUser();
     }
 
     public function connect(GitHubConnectionService $github): void
     {
-        $this->reset('successMessage');
+        session()->forget('github_connect_success');
+
         $this->validate([
             'github_token' => ['required', 'string', 'min:20'],
         ], [
@@ -48,8 +40,7 @@ class GitHubConnect extends Component
         }
 
         $this->github_token = '';
-        $this->syncFromUser();
-        $this->successMessage = 'Compte GitHub connecté ('.$profile['login'].').';
+        session()->flash('github_connect_success', 'Compte GitHub connecté ('.$profile['login'].').');
 
         $this->dispatch('github-connected');
     }
@@ -57,28 +48,25 @@ class GitHubConnect extends Component
     public function disconnect(GitHubConnectionService $github): void
     {
         $github->disconnectUser(Auth::user());
-        $this->reset('github_token', 'successMessage');
-        $this->syncFromUser();
+        $this->github_token = '';
+        session()->forget('github_connect_success');
 
         $this->dispatch('github-disconnected');
     }
 
     public function render(GitHubConnectionService $github)
     {
+        $user = Auth::user();
+
         return view('livewire.github-connect', [
             'authMode' => $github->authMode(),
             'tokenUrl' => $github->personalAccessTokenUrl(),
             'oauthConfigured' => $github->isOAuthConfigured(),
             'connectUrl' => route('github.redirect', ['redirect' => $this->redirect]),
+            'compact' => $this->compact,
+            'connected' => $user?->hasGithubConnection() ?? false,
+            'username' => $user?->github_username,
+            'successMessage' => session('github_connect_success'),
         ]);
-    }
-
-    private function syncFromUser(): void
-    {
-        $user = Auth::user();
-        $user->refresh();
-
-        $this->connected = $user->hasGithubConnection();
-        $this->username = $user->github_username;
     }
 }
