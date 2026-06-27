@@ -30,8 +30,12 @@
                class="maestro-topnav-item {{ request()->routeIs('costs.global') ? 'maestro-topnav-item-active' : '' }}">
                 💰 Coûts global
             </a>
+            <a href="{{ route('settings.mcp') }}"
+               class="maestro-topnav-item {{ request()->routeIs('settings.mcp') ? 'maestro-topnav-item-active' : '' }}">
+                🔌 Intégrations
+            </a>
             <a href="{{ route('settings.edit') }}"
-               class="maestro-topnav-item {{ request()->routeIs('settings.*') ? 'maestro-topnav-item-active' : '' }}">
+               class="maestro-topnav-item {{ request()->routeIs('settings.edit') ? 'maestro-topnav-item-active' : '' }}">
                 ⚙️ Paramètres
             </a>
         </nav>

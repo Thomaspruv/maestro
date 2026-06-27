@@ -23,7 +23,6 @@ class ProfileController extends Controller
         return view('settings.index', [
             'user' => $user,
             'currentMonthCost' => $currentMonthCost,
-            'mcpTokens' => $user->mcpTokens()->latest()->get(),
         ]);
     }
 

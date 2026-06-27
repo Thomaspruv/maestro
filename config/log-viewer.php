@@ -118,15 +118,19 @@ return [
     */
 
     'api_middleware' => [
+        'web',
+        'auth',
         EnsureFrontendRequestsAreStateful::class,
         AuthorizeLogViewer::class,
     ],
 
+    /*
+    | null = défauts du package (localhost, 127.0.0.1, APP_URL avec port).
+    | Important en local si APP_URL inclut le port (ex. http://localhost:8001).
+    */
     'api_stateful_domains' => env('LOG_VIEWER_API_STATEFUL_DOMAINS')
         ? array_map('trim', explode(',', env('LOG_VIEWER_API_STATEFUL_DOMAINS')))
-        : array_values(array_filter([
-            parse_url((string) config('app.url'), PHP_URL_HOST),
-        ])),
+        : null,
 
     /*
     |--------------------------------------------------------------------------

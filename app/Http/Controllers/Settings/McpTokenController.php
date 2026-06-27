@@ -24,7 +24,8 @@ class McpTokenController extends Controller
             'token' => hash('sha256', $plain),
         ]);
 
-        return back()
+        return redirect()
+            ->route('settings.mcp')
             ->with('success', 'Token MCP généré. Copiez-le maintenant — il ne sera plus affiché.')
             ->with('mcp_token_plain', $plain);
     }
@@ -35,6 +36,6 @@ class McpTokenController extends Controller
 
         $mcpToken->delete();
 
-        return back()->with('success', 'Token MCP révoqué.');
+        return redirect()->route('settings.mcp')->with('success', 'Token MCP révoqué.');
     }
 }
