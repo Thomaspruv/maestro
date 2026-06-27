@@ -158,5 +158,16 @@
                 </div>
             </form>
         </div>
+
+        {{-- Logs --}}
+        <div class="maestro-card p-5">
+            <h2 class="mb-1 text-sm font-semibold text-text-primary">Logs applicatifs</h2>
+            <p class="mb-4 text-[11px] text-text-muted">
+                Consultez les journaux Laravel (erreurs 500, queues, Horizon) via Log Viewer.
+            </p>
+            <a href="{{ url('/log-viewer') }}" class="maestro-btn-secondary inline-flex text-[12px]" target="_blank" rel="noopener">
+                Ouvrir Log Viewer →
+            </a>
+        </div>
     </div>
 @endsection
