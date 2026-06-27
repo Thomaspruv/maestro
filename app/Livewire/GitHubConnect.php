@@ -70,7 +70,6 @@ class GitHubConnect extends Component
             'tokenUrl' => $github->personalAccessTokenUrl(),
             'oauthConfigured' => $github->isOAuthConfigured(),
             'connectUrl' => route('github.redirect', ['redirect' => $this->redirect]),
-            'successMessage' => $this->successMessage,
         ]);
     }
 

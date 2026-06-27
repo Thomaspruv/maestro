@@ -1,7 +1,7 @@
 <div class="space-y-3">
-    @if(filled($successMessage ?? null))
+    @if(filled($this->successMessage))
         <div class="rounded-lg border border-success/30 bg-success-muted/20 px-4 py-2 text-xs text-success">
-            {{ $successMessage }}
+            {{ $this->successMessage }}
         </div>
     @endif
 
