@@ -20,7 +20,8 @@ class McpSettingsTest extends TestCase
             ->get('/settings/mcp')
             ->assertOk()
             ->assertSee('Intégrations MCP')
-            ->assertSee('/api/mcp');
+            ->assertSee('/api/mcp')
+            ->assertSee(url('/api/mcp'));
     }
 
     public function test_user_can_generate_mcp_token_from_ui(): void

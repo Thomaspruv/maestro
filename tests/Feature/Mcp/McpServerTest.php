@@ -70,7 +70,9 @@ class McpServerTest extends TestCase
         $this->assertContains('create_task', $names);
         $this->assertContains('add_agent_output', $names);
         $this->assertContains('request_gate', $names);
-        $this->assertCount(8, $names);
+        $this->assertContains('list_hermes_tasks', $names);
+        $this->assertContains('claim_hermes_task', $names);
+        $this->assertCount(10, $names);
     }
 
     public function test_invalid_token_returns_401(): void
@@ -212,6 +214,136 @@ class McpServerTest extends TestCase
         ]);
 
         Bus::assertDispatched(RunAgentJob::class, fn (RunAgentJob $job) => $job->agentType === 'qa');
+    }
+
+    public function test_list_hermes_tasks_returns_tasks_ready_for_hermes(): void
+    {
+        $project = Project::factory()->create(['user_id' => $this->user->id]);
+        $ready = Task::factory()->create([
+            'project_id' => $project->id,
+            'title' => 'Prête pour Hermes',
+            'status' => TaskStatus::WaitingHermes,
+            'current_agent' => 'hermes',
+            'priority' => 'high',
+        ]);
+        Task::factory()->create([
+            'project_id' => $project->id,
+            'title' => 'Encore en planning',
+            'status' => TaskStatus::InProgress,
+        ]);
+
+        $response = $this->mcp('tools/call', [
+            'name' => 'list_hermes_tasks',
+            'arguments' => [],
+        ]);
+
+        $response->assertOk();
+        $payload = json_decode($response->json('result.content.0.text'), true);
+
+        $this->assertSame(1, $payload['count']);
+        $this->assertSame($ready->id, $payload['tasks'][0]['task_id']);
+        $this->assertSame('implement_dev', $payload['tasks'][0]['hermes_action']);
+        $this->assertStringContainsString('claim_hermes_task', $payload['polling_hint']);
+    }
+
+    public function test_list_hermes_tasks_excludes_tasks_with_completed_dev_run(): void
+    {
+        $project = Project::factory()->create(['user_id' => $this->user->id]);
+        $task = Task::factory()->create([
+            'project_id' => $project->id,
+            'status' => TaskStatus::WaitingHermes,
+        ]);
+        AgentRun::factory()->create([
+            'task_id' => $task->id,
+            'agent_type' => 'dev',
+            'status' => AgentRunStatus::Completed,
+        ]);
+
+        $response = $this->mcp('tools/call', [
+            'name' => 'list_hermes_tasks',
+            'arguments' => [],
+        ]);
+
+        $response->assertOk();
+        $payload = json_decode($response->json('result.content.0.text'), true);
+
+        $this->assertSame(0, $payload['count']);
+    }
+
+    public function test_claim_hermes_task_reserves_task_for_processing(): void
+    {
+        $project = Project::factory()->create(['user_id' => $this->user->id]);
+        $task = Task::factory()->create([
+            'project_id' => $project->id,
+            'status' => TaskStatus::WaitingHermes,
+            'current_agent' => 'hermes',
+        ]);
+
+        $response = $this->mcp('tools/call', [
+            'name' => 'claim_hermes_task',
+            'arguments' => ['task_id' => $task->id],
+        ]);
+
+        $response->assertOk();
+        $payload = json_decode($response->json('result.content.0.text'), true);
+
+        $this->assertTrue($payload['claimed']);
+        $this->assertTrue($payload['hermes']['should_process']);
+        $this->assertDatabaseHas('tasks', [
+            'id' => $task->id,
+            'status' => TaskStatus::InProgress->value,
+            'current_agent' => 'hermes',
+        ]);
+    }
+
+    public function test_claim_hermes_task_rejects_already_claimed_task(): void
+    {
+        $project = Project::factory()->create(['user_id' => $this->user->id]);
+        $task = Task::factory()->create([
+            'project_id' => $project->id,
+            'status' => TaskStatus::InProgress,
+            'current_agent' => 'hermes',
+        ]);
+
+        $response = $this->mcp('tools/call', [
+            'name' => 'claim_hermes_task',
+            'arguments' => ['task_id' => $task->id],
+        ]);
+
+        $response->assertStatus(422)
+            ->assertJsonPath('error.message', 'Cette tâche n\'est pas disponible pour Hermes (statut ou run dev déjà présent).');
+    }
+
+    public function test_get_task_includes_hermes_detail_block(): void
+    {
+        $project = Project::factory()->create([
+            'user_id' => $this->user->id,
+            'github_repo' => 'acme/maestro',
+            'github_branch' => 'main',
+        ]);
+        $task = Task::factory()->create([
+            'project_id' => $project->id,
+            'status' => TaskStatus::WaitingHermes,
+        ]);
+        AgentRun::factory()->create([
+            'task_id' => $task->id,
+            'agent_type' => 'tech_lead',
+            'status' => AgentRunStatus::Completed,
+            'output' => 'Specs techniques détaillées',
+        ]);
+
+        $response = $this->mcp('tools/call', [
+            'name' => 'get_task',
+            'arguments' => ['task_id' => $task->id],
+        ]);
+
+        $response->assertOk();
+        $payload = json_decode($response->json('result.content.0.text'), true);
+
+        $this->assertTrue($payload['hermes']['should_process']);
+        $this->assertSame('implement_dev', $payload['hermes']['action']);
+        $this->assertSame('acme/maestro', $payload['hermes']['github']['repo']);
+        $this->assertArrayHasKey('tech_lead', $payload['hermes']['specs_preview']);
     }
 
     /**

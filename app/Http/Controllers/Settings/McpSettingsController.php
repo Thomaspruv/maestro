@@ -13,7 +13,7 @@ class McpSettingsController extends Controller
 
         return view('settings.mcp', [
             'mcpTokens' => $user->mcpTokens()->latest()->get(),
-            'mcpUrl' => rtrim(config('app.url'), '/').'/api/mcp',
+            'mcpUrl' => url('/api/mcp'),
         ]);
     }
 }

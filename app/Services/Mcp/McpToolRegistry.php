@@ -5,8 +5,10 @@ namespace App\Services\Mcp;
 use App\Models\User;
 use App\Services\Mcp\Contracts\McpTool;
 use App\Services\Mcp\Tools\AddAgentOutputTool;
+use App\Services\Mcp\Tools\ClaimHermesTaskTool;
 use App\Services\Mcp\Tools\CreateTaskTool;
 use App\Services\Mcp\Tools\GetTaskTool;
+use App\Services\Mcp\Tools\ListHermesTasksTool;
 use App\Services\Mcp\Tools\ListProjectsTool;
 use App\Services\Mcp\Tools\ListTasksTool;
 use App\Services\Mcp\Tools\LogCostTool;
@@ -23,20 +25,24 @@ class McpToolRegistry
     public function __construct(
         ListProjectsTool $listProjects,
         ListTasksTool $listTasks,
+        ListHermesTasksTool $listHermesTasks,
         GetTaskTool $getTask,
         CreateTaskTool $createTask,
         UpdateTaskStatusTool $updateTaskStatus,
         AddAgentOutputTool $addAgentOutput,
+        ClaimHermesTaskTool $claimHermesTask,
         RequestGateTool $requestGate,
         LogCostTool $logCost,
     ) {
         $this->tools = collect([
             $listProjects,
             $listTasks,
+            $listHermesTasks,
             $getTask,
             $createTask,
             $updateTaskStatus,
             $addAgentOutput,
+            $claimHermesTask,
             $requestGate,
             $logCost,
         ])->keyBy(fn (McpTool $tool) => $tool->name())->all();

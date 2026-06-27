@@ -156,21 +156,20 @@ Toutes les 5 minutes :
 #### Prompt type pour la routine cron
 
 ```
-Pour chaque projet actif (outil MCP list_projects) :
-  1. list_tasks(project_id, status=waiting_hermes)
-  2. Pour la tâche la plus ancienne (updated_at) : get_task(task_id)
-  3. update_task_status(task_id, in_progress) pour éviter qu'un second cron reprenne la même tâche
-  4. Implémenter le code selon les specs PM / UX / Tech Lead
-  5. add_agent_output(task_id, agent_type=dev, output=..., model=...)
-  6. Ne pas reprendre une tâche si un run dev est déjà en cours sur ce projet
+1. list_hermes_tasks() — liste toutes les tâches prêtes pour Hermes (tous projets)
+2. claim_hermes_task(task_id) — réserve la tâche (anti-doublon, passe en in_progress)
+3. get_task(task_id) — récupère les specs complètes (bloc hermes.specs_preview)
+4. Implémenter le code selon les specs PM / UX / Tech Lead
+5. add_agent_output(task_id, agent_type=dev, output=..., model=...)
+6. Ne pas reprendre une tâche déjà claimée ou avec un run dev existant
 ```
 
 Après `add_agent_output(dev)`, Maestro reprend automatiquement la chaîne d'agents (QA → PR Expert → Doc).
 
 #### Anti-doublon
 
-- Au début du traitement, Hermes appelle `update_task_status(task_id, in_progress)` pour retirer la tâche du pool `waiting_hermes`
-- Si le cron échoue avant `add_agent_output`, remettre manuellement la tâche en `waiting_hermes` ou relancer le cron
+- Utiliser **`claim_hermes_task`** plutôt que `update_task_status` : réservation atomique avec verrouillage
+- Si le cron échoue avant `add_agent_output`, remettre la tâche en `waiting_hermes` via `update_task_status`
 
 ### Test bout en bout
 

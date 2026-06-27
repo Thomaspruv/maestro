@@ -6,6 +6,7 @@ use App\Enums\AgentRunStatus;
 use App\Models\User;
 use App\Services\AgentOutputCondenser;
 use App\Services\Mcp\Contracts\McpTool;
+use App\Services\Mcp\HermesTaskPresenter;
 use App\Services\Mcp\McpToolException;
 use App\Services\Mcp\ResolvesMcpResources;
 
@@ -15,6 +16,7 @@ class GetTaskTool implements McpTool
 
     public function __construct(
         private readonly AgentOutputCondenser $condenser,
+        private readonly HermesTaskPresenter $hermesPresenter,
     ) {}
 
     public function name(): string
@@ -45,7 +47,7 @@ class GetTaskTool implements McpTool
         }
 
         $task = $this->findUserTask($user, (int) $arguments['task_id']);
-        $task->load(['project:id,name,uuid', 'agentRuns' => fn ($q) => $q->orderBy('id')]);
+        $task->load(['project:id,name,uuid,github_repo,github_branch', 'agentRuns' => fn ($q) => $q->orderBy('id')]);
 
         $agentRuns = $task->agentRuns
             ->whereIn('status', [AgentRunStatus::Completed, AgentRunStatus::Skipped])
@@ -81,6 +83,7 @@ class GetTaskTool implements McpTool
                 'actual_cost' => (float) $task->actual_cost,
             ],
             'agent_runs' => $agentRuns,
+            'hermes' => $this->hermesPresenter->detailBlock($task),
         ];
     }
 }

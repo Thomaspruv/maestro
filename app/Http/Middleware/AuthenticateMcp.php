@@ -18,7 +18,7 @@ class AuthenticateMcp
 
     public function handle(Request $request, Closure $next): Response
     {
-        $plain = $request->bearerToken();
+        $plain = $this->normalizeBearerToken($request->bearerToken());
 
         if ($plain === null || $plain === '') {
             return $this->unauthorized($request);
@@ -50,6 +50,25 @@ class AuthenticateMcp
         $mcpToken->forceFill(['last_used_at' => now()])->save();
 
         return $mcpToken->user;
+    }
+
+    private function normalizeBearerToken(?string $token): ?string
+    {
+        if ($token === null) {
+            return null;
+        }
+
+        $token = trim($token);
+
+        if ($token === '') {
+            return null;
+        }
+
+        if (str_starts_with(strtolower($token), 'bearer ')) {
+            $token = trim(substr($token, 7));
+        }
+
+        return $token !== '' ? $token : null;
     }
 
     private function unauthorized(Request $request): JsonResponse
