@@ -171,20 +171,43 @@
 document.addEventListener('livewire:navigated', initKanbanSortable);
 document.addEventListener('DOMContentLoaded', initKanbanSortable);
 
+function collectKanbanColumns() {
+    const columns = {};
+
+    document.querySelectorAll('.kanban-column').forEach(col => {
+        const status = col.dataset.status;
+        columns[status] = [...col.querySelectorAll('.kanban-task-wrapper[data-task-id]')].map((el, i) => ({
+            task_id: parseInt(el.dataset.taskId, 10),
+            sort_order: i,
+        }));
+    });
+
+    return columns;
+}
+
+function syncKanbanToServer(component) {
+    const columns = collectKanbanColumns();
+    component.call('syncKanbanColumns', columns);
+}
+
 function initKanbanSortable() {
     document.querySelectorAll('.kanban-column').forEach(col => {
-        if (col._sortable) return;
-        const status = col.dataset.status;
+        if (col._sortable) {
+            col._sortable.destroy();
+        }
+
         col._sortable = Sortable.create(col, {
             group: 'kanban',
             animation: 150,
             draggable: '.kanban-task-wrapper',
+            ghostClass: 'opacity-40',
             onEnd: () => {
-                const items = [...col.querySelectorAll('[data-task-id]')].map((el, i) => ({
-                    task_id: parseInt(el.dataset.taskId),
-                    sort_order: i,
-                }));
-                @this.call('updateColumnOrder', status, items);
+                const root = col.closest('[wire\\:id]');
+                const component = root ? Livewire.find(root.getAttribute('wire:id')) : null;
+
+                if (component) {
+                    syncKanbanToServer(component);
+                }
             },
         });
     });

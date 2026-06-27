@@ -48,4 +48,73 @@ class KanbanBoardTest extends TestCase
             ->assertSee('Voir les specs')
             ->assertSee('Démarrer les agents');
     }
+
+    public function test_sync_kanban_columns_persists_move_to_hermes(): void
+    {
+        $user = User::factory()->create();
+        $project = Project::factory()->create(['user_id' => $user->id]);
+
+        $task = Task::factory()->create([
+            'project_id' => $project->id,
+            'status' => TaskStatus::InProgress,
+            'current_agent' => 'pm',
+            'sort_order' => 0,
+        ]);
+
+        Task::factory()->create([
+            'project_id' => $project->id,
+            'status' => TaskStatus::Backlog,
+            'sort_order' => 1,
+        ]);
+
+        Livewire::actingAs($user)
+            ->test(KanbanBoard::class, ['project' => $project])
+            ->call('syncKanbanColumns', [
+                'backlog' => [
+                    ['task_id' => Task::where('status', TaskStatus::Backlog)->first()->id, 'sort_order' => 0],
+                ],
+                'in_progress' => [],
+                'waiting_hermes' => [
+                    ['task_id' => $task->id, 'sort_order' => 0],
+                ],
+                'in_review' => [],
+                'done' => [],
+            ]);
+
+        $this->assertDatabaseHas('tasks', [
+            'id' => $task->id,
+            'status' => TaskStatus::WaitingHermes->value,
+            'current_agent' => 'hermes',
+        ]);
+    }
+
+    public function test_sync_kanban_columns_clears_hermes_agent_when_leaving_column(): void
+    {
+        $user = User::factory()->create();
+        $project = Project::factory()->create(['user_id' => $user->id]);
+
+        $task = Task::factory()->create([
+            'project_id' => $project->id,
+            'status' => TaskStatus::WaitingHermes,
+            'current_agent' => 'hermes',
+        ]);
+
+        Livewire::actingAs($user)
+            ->test(KanbanBoard::class, ['project' => $project])
+            ->call('syncKanbanColumns', [
+                'backlog' => [
+                    ['task_id' => $task->id, 'sort_order' => 0],
+                ],
+                'in_progress' => [],
+                'waiting_hermes' => [],
+                'in_review' => [],
+                'done' => [],
+            ]);
+
+        $this->assertDatabaseHas('tasks', [
+            'id' => $task->id,
+            'status' => TaskStatus::Backlog->value,
+            'current_agent' => null,
+        ]);
+    }
 }

@@ -83,21 +83,60 @@ class KanbanBoard extends Component
      */
     public function updateColumnOrder(string $status, array $items): void
     {
-        foreach ($items as $item) {
-            $task = Task::where('project_id', $this->project->id)->find($item['task_id']);
-            if ($task) {
+        $this->syncKanbanColumns([$status => $items]);
+    }
+
+    /**
+     * Synchronise toutes les colonnes visibles en un seul appel (évite les courses Sortable).
+     *
+     * @param  array<string, array<int, array{task_id: int, sort_order: int}>>  $columns
+     */
+    public function syncKanbanColumns(array $columns): void
+    {
+        foreach ($columns as $status => $items) {
+            if (! is_array($items)) {
+                continue;
+            }
+
+            $newStatus = TaskStatus::tryFrom($status);
+
+            if ($newStatus === null) {
+                continue;
+            }
+
+            foreach ($items as $item) {
+                if (! is_array($item) || ! isset($item['task_id'])) {
+                    continue;
+                }
+
+                $task = Task::where('project_id', $this->project->id)->find($item['task_id']);
+
+                if ($task === null) {
+                    continue;
+                }
+
                 $this->authorize('update', $task);
-                $newStatus = TaskStatus::from($status);
 
                 $task->update([
                     'status' => $newStatus,
-                    'sort_order' => $item['sort_order'],
-                    'current_agent' => $newStatus === TaskStatus::WaitingHermes
-                        ? 'hermes'
-                        : ($task->current_agent === 'hermes' ? null : $task->current_agent),
+                    'sort_order' => (int) ($item['sort_order'] ?? 0),
+                    'current_agent' => $this->resolveCurrentAgentForColumn($newStatus, $task),
                 ]);
             }
         }
+    }
+
+    private function resolveCurrentAgentForColumn(TaskStatus $newStatus, Task $task): ?string
+    {
+        if ($newStatus === TaskStatus::WaitingHermes) {
+            return 'hermes';
+        }
+
+        if ($task->current_agent === 'hermes') {
+            return null;
+        }
+
+        return $task->current_agent;
     }
 
     public function render()
