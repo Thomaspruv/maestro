@@ -25,9 +25,10 @@
     </div>
 
     {{-- Statistiques --}}
-    <div class="mb-5 grid grid-cols-4 gap-3">
+    <div class="mb-5 grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-5">
         <x-ui.metric-card label="Tâches totales" :value="$stats['total']" />
         <x-ui.metric-card label="En cours" :value="$stats['in_progress']" subColor="info" />
+        <x-ui.metric-card label="Hermes" :value="$stats['waiting_hermes']" subColor="info" />
         <x-ui.metric-card label="Gates en attente" :value="$stats['pending_gates']" subColor="warning" />
         <x-ui.metric-card label="Coût réel" :value="'$'.number_format($stats['total_cost'], 2)" subColor="warning" />
     </div>
@@ -58,18 +59,24 @@
         $columnLabels = [
             'backlog' => ['label' => 'Backlog', 'icon' => '📥'],
             'in_progress' => ['label' => 'En cours', 'icon' => '⚡'],
+            'waiting_hermes' => ['label' => 'Hermes', 'icon' => '💻', 'hint' => 'Prêt pour le cron MCP'],
             'in_review' => ['label' => 'En revue', 'icon' => '👀'],
             'done' => ['label' => 'Terminé', 'icon' => '✅'],
         ];
     @endphp
 
-    <div class="grid grid-cols-4 gap-3">
+    <div class="grid grid-cols-1 gap-3 md:grid-cols-3 xl:grid-cols-5">
         @foreach($columnLabels as $status => $meta)
             <div class="flex flex-col">
-                <div class="mb-2 flex items-center gap-2 px-1">
-                    <span>{{ $meta['icon'] }}</span>
-                    <span class="text-[13px] font-medium text-maestro-text">{{ $meta['label'] }}</span>
-                    <span class="rounded bg-maestro-surface-2 px-1.5 py-0.5 text-[12px] text-maestro-subtle">{{ $columns[$status]->count() }}</span>
+                <div class="mb-2 px-1">
+                    <div class="flex items-center gap-2">
+                        <span>{{ $meta['icon'] }}</span>
+                        <span class="text-[13px] font-medium text-maestro-text">{{ $meta['label'] }}</span>
+                        <span class="rounded bg-maestro-surface-2 px-1.5 py-0.5 text-[12px] text-maestro-subtle">{{ $columns[$status]->count() }}</span>
+                    </div>
+                    @if(! empty($meta['hint']))
+                        <p class="mt-0.5 text-[11px] text-maestro-subtle">{{ $meta['hint'] }}</p>
+                    @endif
                 </div>
 
                 <div
@@ -94,7 +101,15 @@
                                     wire:click.stop="startTask({{ $task->id }})"
                                     class="maestro-btn-primary w-full py-1.5 text-[10px]"
                                 >
-                                    ▶ Lancer la pipeline
+                                    ▶ Démarrer les agents
+                                </button>
+                            @elseif($task->status->value === 'waiting_hermes')
+                                <button
+                                    type="button"
+                                    wire:click.stop="openTask({{ $task->id }})"
+                                    class="maestro-btn-ghost w-full py-1 text-[10px]"
+                                >
+                                    Voir les specs →
                                 </button>
                             @else
                                 <button
@@ -102,7 +117,7 @@
                                     wire:click.stop="openTask({{ $task->id }})"
                                     class="maestro-btn-ghost w-full py-1 text-[10px]"
                                 >
-                                    Voir la pipeline →
+                                    Voir la progression →
                                 </button>
                             @endif
                         </div>
@@ -114,13 +129,13 @@
         @endforeach
     </div>
 
-    {{-- Panneau pipeline (depuis le Kanban) --}}
+    {{-- Panneau progression (depuis le Kanban) --}}
     @if($openTask)
         <div class="task-drawer-backdrop" wire:click="closeTask" aria-hidden="true"></div>
         <div class="task-drawer" role="dialog" aria-labelledby="task-drawer-title">
             <div class="flex items-start justify-between gap-3 border-b px-5 py-4">
                 <div class="min-w-0">
-                    <x-ui.label>Pipeline en direct</x-ui.label>
+                    <x-ui.label>Progression en direct</x-ui.label>
                     <h2 id="task-drawer-title" class="truncate text-[16px] font-medium text-maestro-text">{{ $openTask->title }}</h2>
                     <div class="mt-2 flex flex-wrap gap-2">
                         <x-maestro.badge kind="task_status" :value="$openTask->status" />

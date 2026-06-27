@@ -10,7 +10,7 @@
     @if($shouldPoll) wire:poll.5s="refreshTask" @endif
 >
     <div class="mb-4 flex items-center justify-between gap-2">
-        <x-ui.heading-3>Pipeline</x-ui.heading-3>
+        <x-ui.heading-3>Progression</x-ui.heading-3>
         <div class="flex items-center gap-2">
             @if($task->status->value !== 'backlog')
                 <a href="{{ route('projects.tasks.cockpit', [$task->project_id, $task->uuid]) }}"
@@ -117,6 +117,67 @@
                 </div>
             @endif
         @endforeach
+
+        @php
+            $devRun = $runsByAgent['dev'] ?? null;
+            $showHermesStep = $task->status->value === 'waiting_hermes' || $devRun !== null;
+            $isHermesCurrent = $task->status->value === 'waiting_hermes' && ! $devRun;
+            $hermesBadgeStatus = match ($devRun?->status->value ?? null) {
+                'pending', 'running' => 'running',
+                'completed' => 'completed',
+                'failed' => 'blocked',
+                default => $isHermesCurrent ? 'running' : 'pending',
+            };
+            $hermesDuration = $devRun ? \App\Support\PipelineActivity::formatDuration($devRun) : null;
+        @endphp
+        @if($showHermesStep)
+            <div
+                @if($devRun) wire:click="selectRun({{ $devRun->id }})" @endif
+                @class([
+                    'relative flex items-start gap-3 rounded-lg border px-3 py-2 transition-colors',
+                    'cursor-pointer border-maestro-accent bg-maestro-accent/10' => $devRun && $selectedRunId === $devRun->id,
+                    'cursor-pointer border hover:border-maestro-accent/30' => $devRun && $selectedRunId !== $devRun->id,
+                    'border-maestro-accent/40 bg-maestro-accent/5 ring-1 ring-maestro-accent/30' => $isHermesCurrent,
+                    'border opacity-60' => ! $devRun && ! $isHermesCurrent,
+                ])
+            >
+                <div @class([
+                    'flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-maestro-surface-2 text-sm',
+                    'pipeline-agent-pulse' => $isHermesCurrent || in_array($devRun?->status->value ?? '', ['pending', 'running'], true),
+                ])>
+                    💻
+                </div>
+
+                <div class="min-w-0 flex-1">
+                    <div class="flex items-center justify-between gap-2">
+                        <p class="text-[13px] font-medium text-maestro-text">Hermes (Dev)</p>
+                        @if($devRun)
+                            <x-ui.badge :status="$hermesBadgeStatus" />
+                        @elseif($isHermesCurrent)
+                            <x-ui.badge status="running">En attente</x-ui.badge>
+                        @else
+                            <x-ui.badge status="pending">En attente</x-ui.badge>
+                        @endif
+                    </div>
+
+                    @if($devRun)
+                        <div class="mt-1 space-y-0.5 text-[12px] text-maestro-subtle">
+                            @if($devRun->model)
+                                <p>{{ $devRun->model }}</p>
+                            @endif
+                            @if($hermesDuration)
+                                <p>Durée : {{ $hermesDuration }}</p>
+                            @endif
+                            @if($devRun->cost)
+                                <p class="text-maestro-muted">${{ number_format($devRun->cost, 4) }}</p>
+                            @endif
+                        </div>
+                    @elseif($isHermesCurrent)
+                        <p class="mt-1 text-[12px] text-maestro-accent">Hermes récupère cette tâche via son cron MCP</p>
+                    @endif
+                </div>
+            </div>
+        @endif
     </div>
 
     @if($task->actual_cost > 0)

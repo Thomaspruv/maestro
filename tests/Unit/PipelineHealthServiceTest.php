@@ -163,6 +163,23 @@ class PipelineHealthServiceTest extends TestCase
     }
 
     #[Test]
+    public function waiting_hermes_reports_hermes_state(): void
+    {
+        $task = new Task([
+            'status' => TaskStatus::WaitingHermes,
+            'current_agent' => 'hermes',
+        ]);
+        $task->setRelation('agentRuns', collect());
+        $task->setRelation('gates', collect());
+
+        $health = app(PipelineHealthService::class)->forTask($task, ['pm', 'ux', 'tech_lead', 'security', 'qa']);
+
+        $this->assertSame(PipelineHealthState::WaitingHermes, $health['state']);
+        $this->assertSame('En attente d\'Hermes', $health['title']);
+        $this->assertStringContainsString('cron MCP', $health['message']);
+    }
+
+    #[Test]
     public function kanban_banner_hidden_when_database_queue_is_idle(): void
     {
         config(['queue.default' => 'database']);

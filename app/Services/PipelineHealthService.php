@@ -176,11 +176,25 @@ class PipelineHealthService
             );
         }
 
+        if ($task->status === TaskStatus::WaitingHermes) {
+            return $this->build(
+                PipelineHealthState::WaitingHermes,
+                'En attente d\'Hermes',
+                'Hermes récupère cette tâche via son cron MCP.',
+                $progress,
+                $completedCount,
+                $totalSteps,
+                $currentStep,
+                'hermes',
+                'primary',
+            );
+        }
+
         if ($task->status === TaskStatus::Backlog) {
             return $this->build(
                 PipelineHealthState::NotStarted,
                 'Prêt à démarrer',
-                'Cliquez sur « Lancer la pipeline » pour démarrer le premier agent.',
+                'Cliquez sur « Démarrer les agents » pour démarrer le premier agent.',
                 0,
                 0,
                 $totalSteps,

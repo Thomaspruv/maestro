@@ -32,7 +32,7 @@
         <x-maestro.badge kind="mode" :value="$task->mode" />
     </div>
 
-    @if($health && $task->status === TaskStatus::InProgress)
+    @if($health && in_array($task->status, [TaskStatus::InProgress, TaskStatus::WaitingHermes], true))
         @php
             $stripClass = match ($health['tone'] ?? 'muted') {
                 'danger' => 'border-[var(--maestro-danger-border)] bg-[var(--maestro-danger-bg)] text-[var(--maestro-danger)]',
@@ -44,6 +44,8 @@
         <div class="mb-2 rounded-lg border px-2 py-1.5 {{ $stripClass }}">
             @if($healthState === PipelineHealthState::BlockedWorker)
                 <p class="text-[12px] font-medium">Bloquée — démarrer Horizon</p>
+            @elseif($healthState === PipelineHealthState::WaitingHermes)
+                <p class="text-[12px] leading-snug">{{ $health['title'] }}</p>
             @elseif($runningRun && $currentAgent)
                 <div class="flex items-start gap-1.5">
                     <span class="pipeline-spinner mt-0.5 h-3 w-3 shrink-0" aria-hidden="true"></span>

@@ -134,13 +134,51 @@ Puis dans Cowork : connecteur custom → OAuth → login Maestro → « Liste me
 hermes gateway telegram
 ```
 
+### Cron Hermes — récupération des tâches en attente
+
+Maestro ne pousse pas de notification vers Hermes. Un **cron côté Hermes** interroge le MCP Maestro (pull) pour traiter les tâches en statut `waiting_hermes`.
+
+#### Prérequis
+
+- Token MCP Maestro configuré dans Hermes (voir ci-dessus)
+- MCP server `maestro` actif et accessible depuis le serveur Hermes
+
+#### Fréquence suggérée
+
+Toutes les 5 minutes :
+
+```
+*/5 * * * * hermes cron run maestro-dev-poll
+```
+
+(ou équivalent via `hermes cron add` / routine planifiée Hermes)
+
+#### Prompt type pour la routine cron
+
+```
+Pour chaque projet actif (outil MCP list_projects) :
+  1. list_tasks(project_id, status=waiting_hermes)
+  2. Pour la tâche la plus ancienne (updated_at) : get_task(task_id)
+  3. update_task_status(task_id, in_progress) pour éviter qu'un second cron reprenne la même tâche
+  4. Implémenter le code selon les specs PM / UX / Tech Lead
+  5. add_agent_output(task_id, agent_type=dev, output=..., model=...)
+  6. Ne pas reprendre une tâche si un run dev est déjà en cours sur ce projet
+```
+
+Après `add_agent_output(dev)`, Maestro reprend automatiquement la chaîne d'agents (QA → PR Expert → Doc).
+
+#### Anti-doublon
+
+- Au début du traitement, Hermes appelle `update_task_status(task_id, in_progress)` pour retirer la tâche du pool `waiting_hermes`
+- Si le cron échoue avant `add_agent_output`, remettre manuellement la tâche en `waiting_hermes` ou relancer le cron
+
 ### Test bout en bout
 
 1. Hermes appelle `create_task` via MCP
 2. La tâche apparaît dans le kanban Maestro
 3. Après les agents de planning + gate tech, la tâche passe en statut **Hermes** (`waiting_hermes`)
 4. Hermes implémente le code et appelle `add_agent_output` avec `agent_type: dev`
-5. Le pipeline Maestro reprend sur QA → PR Expert → Doc
+5. La chaîne d'agents Maestro reprend sur QA → PR Expert → Doc
 
 ## Checklist post-déploiement
 

@@ -8,6 +8,7 @@ enum PipelineHealthState: string
     case Queued = 'queued';
     case Running = 'running';
     case WaitingGate = 'waiting_gate';
+    case WaitingHermes = 'waiting_hermes';
     case BlockedWorker = 'blocked_worker';
     case Completed = 'completed';
     case Failed = 'failed';

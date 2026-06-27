@@ -87,9 +87,14 @@ class KanbanBoard extends Component
             $task = Task::where('project_id', $this->project->id)->find($item['task_id']);
             if ($task) {
                 $this->authorize('update', $task);
+                $newStatus = TaskStatus::from($status);
+
                 $task->update([
-                    'status' => TaskStatus::from($status),
+                    'status' => $newStatus,
                     'sort_order' => $item['sort_order'],
+                    'current_agent' => $newStatus === TaskStatus::WaitingHermes
+                        ? 'hermes'
+                        : ($task->current_agent === 'hermes' ? null : $task->current_agent),
                 ]);
             }
         }
@@ -116,6 +121,7 @@ class KanbanBoard extends Component
         $columns = [
             'backlog' => $tasks->where('status', TaskStatus::Backlog)->merge($tasks->where('status', TaskStatus::Failed)),
             'in_progress' => $tasks->where('status', TaskStatus::InProgress),
+            'waiting_hermes' => $tasks->where('status', TaskStatus::WaitingHermes),
             'in_review' => $tasks->where('status', TaskStatus::InReview),
             'done' => $tasks->where('status', TaskStatus::Done),
         ];
@@ -123,6 +129,7 @@ class KanbanBoard extends Component
         $stats = [
             'total' => $this->project->tasks()->count(),
             'in_progress' => $this->project->tasks()->where('status', TaskStatus::InProgress)->count(),
+            'waiting_hermes' => $this->project->tasks()->where('status', TaskStatus::WaitingHermes)->count(),
             'pending_gates' => $this->project->tasks()->whereHas('gates', fn ($q) => $q->where('status', 'pending'))->count(),
             'total_cost' => (float) $this->project->tasks()->sum('actual_cost'),
         ];
