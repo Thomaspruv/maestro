@@ -13,6 +13,7 @@ use App\Http\Controllers\Projects\ProjectWizardController;
 use App\Http\Controllers\Settings\ApiKeyController;
 use App\Http\Controllers\Settings\BudgetController;
 use App\Http\Controllers\Settings\GitHubAccountController;
+use App\Http\Controllers\Settings\McpTokenController;
 use App\Http\Controllers\Settings\ProfileController;
 use App\Http\Controllers\Tasks\CostEstimatorController;
 use App\Http\Controllers\Tasks\TaskController;
@@ -42,6 +43,8 @@ Route::middleware(['auth', 'verified'])->group(function () {
         Route::put('/', [ProfileController::class, 'update'])->name('update');
         Route::put('/api-key', [ApiKeyController::class, 'update'])->name('api-key.update');
         Route::put('/budget', [BudgetController::class, 'update'])->name('budget.update');
+        Route::post('/mcp-tokens', [McpTokenController::class, 'store'])->name('mcp-tokens.store');
+        Route::delete('/mcp-tokens/{mcpToken}', [McpTokenController::class, 'destroy'])->name('mcp-tokens.destroy');
         Route::put('/github', [GitHubAccountController::class, 'update'])->name('github.update');
         Route::delete('/github', [GitHubAccountController::class, 'disconnect'])->name('github.disconnect');
     });

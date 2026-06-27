@@ -2,35 +2,19 @@
 
 namespace Tests\Unit;
 
-use App\Models\AgentRun;
-use App\Models\Task;
-use App\Services\DevPromptBuilder;
+use App\Services\AgentOutputCondenser;
 use PHPUnit\Framework\Attributes\Test;
 use Tests\TestCase;
 
-class DevPromptBuilderTest extends TestCase
+class AgentOutputCondenserTest extends TestCase
 {
-    #[Test]
-    public function it_keeps_short_agent_outputs_intact(): void
-    {
-        $run = new AgentRun([
-            'input' => ['pm' => 'Specs courtes'],
-        ]);
-        $run->setRelation('task', new Task(['title' => 'Ma tâche', 'description' => 'Desc']));
-
-        $prompt = app(DevPromptBuilder::class)->build($run);
-
-        $this->assertStringContainsString('### pm', $prompt);
-        $this->assertStringContainsString('Specs courtes', $prompt);
-    }
-
     #[Test]
     public function it_condenses_unstructured_text_with_head_tail(): void
     {
-        $builder = app(DevPromptBuilder::class);
-        $long = str_repeat('A', DevPromptBuilder::MAX_CHARS_PER_AGENT + 500);
+        $condenser = app(AgentOutputCondenser::class);
+        $long = str_repeat('A', AgentOutputCondenser::MAX_CHARS_PER_AGENT + 500);
 
-        $condensed = $builder->condense($long);
+        $condensed = $condenser->condense($long);
 
         $this->assertLessThan(strlen($long), strlen($condensed));
         $this->assertStringContainsString('contenu tronqué', $condensed);
@@ -39,8 +23,8 @@ class DevPromptBuilderTest extends TestCase
     #[Test]
     public function it_preserves_high_priority_sections_when_condensing(): void
     {
-        $builder = app(DevPromptBuilder::class);
-        $limit = DevPromptBuilder::MAX_CHARS_PER_AGENT;
+        $condenser = app(AgentOutputCondenser::class);
+        $limit = AgentOutputCondenser::MAX_CHARS_PER_AGENT;
 
         $filler = str_repeat('x', 300);
         $text = <<<MD
@@ -66,7 +50,7 @@ class DevPromptBuilderTest extends TestCase
 
         $this->assertGreaterThan($limit, strlen($text), 'Le texte de test doit dépasser la limite');
 
-        $condensed = $builder->condense($text);
+        $condensed = $condenser->condense($text);
 
         $this->assertLessThanOrEqual($limit + 200, strlen($condensed));
         $this->assertStringContainsString("Critères d'acceptation", $condensed);
@@ -76,7 +60,7 @@ class DevPromptBuilderTest extends TestCase
     #[Test]
     public function it_marks_omitted_sections_in_condensed_output(): void
     {
-        $builder = app(DevPromptBuilder::class);
+        $condenser = app(AgentOutputCondenser::class);
         $filler = str_repeat('Contenu générique. ', 200);
 
         $text = <<<MD
@@ -96,11 +80,11 @@ class DevPromptBuilderTest extends TestCase
         Risque identifié.
         MD;
 
-        if (strlen($text) <= DevPromptBuilder::MAX_CHARS_PER_AGENT) {
+        if (strlen($text) <= AgentOutputCondenser::MAX_CHARS_PER_AGENT) {
             $this->markTestSkipped('Texte trop court pour tester la condensation.');
         }
 
-        $condensed = $builder->condense($text);
+        $condensed = $condenser->condense($text);
 
         $this->assertStringContainsString('Sections omises', $condensed);
     }
@@ -108,9 +92,9 @@ class DevPromptBuilderTest extends TestCase
     #[Test]
     public function it_returns_empty_string_for_empty_input(): void
     {
-        $builder = app(DevPromptBuilder::class);
+        $condenser = app(AgentOutputCondenser::class);
 
-        $this->assertSame('', $builder->condense(''));
-        $this->assertSame('', $builder->condense('   '));
+        $this->assertSame('', $condenser->condense(''));
+        $this->assertSame('', $condenser->condense('   '));
     }
 }

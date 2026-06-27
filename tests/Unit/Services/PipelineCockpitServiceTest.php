@@ -11,10 +11,12 @@ use App\Models\Task;
 use App\Models\User;
 use App\Services\OrchestratorService;
 use App\Services\PipelineCockpitService;
+use Illuminate\Foundation\Testing\RefreshDatabase;
 use Tests\TestCase;
 
 class PipelineCockpitServiceTest extends TestCase
 {
+    use RefreshDatabase;
 
     public function test_snapshot_empty_task(): void
     {
@@ -91,17 +93,18 @@ class PipelineCockpitServiceTest extends TestCase
         $project = Project::factory()->create(['user_id' => $user->id]);
         $task = Task::factory()->create(['project_id' => $project->id]);
         $run = $task->agentRuns()->create([
-            'agent_type' => 'dev',
+            'agent_type' => 'pm',
             'status' => AgentRunStatus::Running,
             'input' => [],
             'model' => 'claude-opus-4-8',
-            'updated_at' => now()->subMinutes(35),
         ]);
+        $run->forceFill(['updated_at' => now()->subMinutes(35)])->saveQuietly();
 
         $service = new PipelineCockpitService(app(OrchestratorService::class));
         $snapshot = $service->getSnapshot($task);
 
-        $devStep = collect($snapshot['steps'])->first(fn ($s) => $s['agent_type'] === 'dev');
-        $this->assertEquals('blocked', $devStep['status']);
+        $pmStep = collect($snapshot['steps'])->first(fn ($s) => ($s['agent_type'] ?? null) === 'pm');
+        $this->assertNotNull($pmStep);
+        $this->assertEquals('blocked', $pmStep['status']);
     }
 }

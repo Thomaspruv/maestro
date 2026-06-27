@@ -75,6 +75,10 @@ class ProtectDevDatabase
             return;
         }
 
+        if (filter_var(env('MAESTRO_ALLOW_DESTRUCTIVE_DB', false), FILTER_VALIDATE_BOOL)) {
+            return;
+        }
+
         if (! self::isProtectedDevConnection()) {
             return;
         }
@@ -83,7 +87,8 @@ class ProtectDevDatabase
 
         throw new RuntimeException(
             "Commande « {$command} » interdite sur la base dev « {$database} ». "
-            .'Utilisez php artisan migrate (incrémental) ou php artisan maestro:restore-thomas.'
+            .'Utilisez php artisan migrate (incrémental), php artisan maestro:restore-thomas, '
+            .'ou MAESTRO_ALLOW_DESTRUCTIVE_DB=1 php artisan '.$command.' --force.'
         );
     }
 
@@ -96,9 +101,13 @@ class ProtectDevDatabase
     {
         return [
             'APP_ENV' => 'testing',
+            'APP_KEY' => 'base64:'.base64_encode(str_repeat('0', 32)),
             'DB_CONNECTION' => 'sqlite',
             'DB_DATABASE' => ':memory:',
             'DB_URL' => '',
+            'SESSION_DRIVER' => 'array',
+            'QUEUE_CONNECTION' => 'sync',
+            'CACHE_STORE' => 'array',
         ];
     }
 }

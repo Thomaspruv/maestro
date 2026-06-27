@@ -43,7 +43,10 @@ class DiscoveryChatService
         $model = AgentCapabilities::resolveModel('discovery', $project);
         $systemBlocks = $this->buildSystemBlocks($project, $fullDiscovery);
 
-        $conversation = array_merge($history, [
+        $maxHistory = (int) config('maestro.discovery_max_history', 10);
+        $trimmedHistory = array_slice($history, -$maxHistory);
+
+        $conversation = array_merge($trimmedHistory, [
             ['role' => 'user', 'content' => $enrichedMessage],
         ]);
 

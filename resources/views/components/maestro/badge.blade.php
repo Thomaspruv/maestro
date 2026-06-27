@@ -30,6 +30,7 @@
         'task_status' => [
             'backlog' => 'Backlog',
             'in_progress' => 'En cours',
+            'waiting_hermes' => 'Hermes',
             'in_review' => 'En revue',
             'done' => 'Terminé',
             'failed' => 'Échoué',
@@ -65,6 +66,7 @@
         'task_status' => [
             'backlog' => 'bg-bg-overlay text-text-muted',
             'in_progress' => 'bg-primary-muted text-primary-light',
+            'waiting_hermes' => 'bg-primary-muted text-primary-light',
             'in_review' => 'bg-warning-muted text-warning',
             'done' => 'bg-success-muted text-success',
             'failed' => 'bg-danger-muted text-danger',
@@ -76,6 +78,6 @@
     $colorClass = $colors[$kind][$rawValue] ?? 'bg-bg-overlay text-text-secondary';
 @endphp
 
-<span {{ $attributes->merge(['class' => "inline-flex items-center rounded px-1.5 py-0.5 text-[9px] font-semibold uppercase tracking-wide {$colorClass}"]) }}>
+<span {{ $attributes->merge(['class' => "inline-flex items-center rounded-full px-2 py-0.5 text-[12px] font-medium uppercase tracking-wide {$colorClass}"]) }}>
     {{ $label }}
 </span>

@@ -2,18 +2,13 @@
 
 namespace App\Services;
 
-use App\Models\AgentRun;
 use Illuminate\Support\Str;
 
-class DevPromptBuilder
+class AgentOutputCondenser
 {
     /** ~2000 tokens (approx. 4 chars/token). */
     public const MAX_CHARS_PER_AGENT = 8000;
 
-    /**
-     * Sections de haute priorité — critiques pour les agents suivants.
-     * Ces sections sont conservées en priorité lors de la condensation.
-     */
     private const HIGH_PRIORITY_KEYWORDS = [
         'critères', 'acceptation', 'fichiers', 'plan', 'risques', 'sécurité',
         'architecture', 'migrations', 'étapes', 'implémentation', 'checklist',
@@ -25,42 +20,6 @@ class DevPromptBuilder
         'compatibilité', 'permissions', 'hors périmètre', 'out of scope',
     ];
 
-    public function build(AgentRun $run): string
-    {
-        $run->loadMissing('task');
-        $inputs = $run->input ?? [];
-
-        $sections = [
-            "## Tâche : {$run->task->title}",
-            $run->task->description ?? '',
-        ];
-
-        if ($inputs !== []) {
-            $sections[] = '## Contexte des agents précédents (résumé)';
-
-            foreach ($inputs as $agent => $output) {
-                if ($agent === 'feedback' || ! is_string($output)) {
-                    continue;
-                }
-
-                $sections[] = "### {$agent}\n".$this->condense($output);
-            }
-        }
-
-        if (isset($inputs['feedback']) && is_string($inputs['feedback'])) {
-            $sections[] = "### feedback\n".$this->condense($inputs['feedback']);
-        }
-
-        $sections[] = 'Implémente les changements dans le dépôt local. Respecte les conventions du projet.';
-
-        return implode("\n\n", $sections);
-    }
-
-    /**
-     * Condensation structurelle : découpe en sections markdown et conserve
-     * en priorité les sections critiques pour les agents suivants.
-     * Si le texte est inférieur à la limite, retourne tel quel.
-     */
     public function condense(string $text): string
     {
         $text = trim($text);
@@ -85,9 +44,6 @@ class DevPromptBuilder
     }
 
     /**
-     * Découpe un texte markdown en sections selon les titres ## et ###.
-     * Chaque entrée = ['heading' => '## Foo', 'body' => '...', 'score' => int].
-     *
      * @return array<int, array{heading: string, body: string, score: int}>
      */
     private function splitIntoSections(string $text): array
@@ -126,9 +82,6 @@ class DevPromptBuilder
         return $sections;
     }
 
-    /**
-     * Attribue un score de priorité à une section selon son titre et contenu.
-     */
     private function scoreSection(string $heading, string $body): int
     {
         $haystack = mb_strtolower($heading.' '.$body);
@@ -149,9 +102,6 @@ class DevPromptBuilder
     }
 
     /**
-     * Sélectionne les sections dans l'ordre original en privilégiant
-     * les scores élevés quand la limite est atteinte.
-     *
      * @param  array<int, array{heading: string, body: string, score: int}>  $sections
      */
     private function selectSectionsByPriority(array $sections, int $maxChars): string
@@ -167,12 +117,12 @@ class DevPromptBuilder
 
         $includedIndexes = [];
 
-        foreach ($sortedByScore as $i => $section) {
+        foreach ($sortedByScore as $section) {
             $content = $this->renderSection($section);
             $len = Str::length($content) + 2;
 
             if ($usedChars + $len + $reserved <= $maxChars) {
-                $includedIndexes[] = $sections === [] ? $i : array_search($section, $sections, true);
+                $includedIndexes[] = array_search($section, $sections, true);
                 $usedChars += $len;
             }
         }
@@ -180,10 +130,8 @@ class DevPromptBuilder
         foreach ($sections as $originalIndex => $section) {
             if (in_array($originalIndex, $includedIndexes, true)) {
                 $selected[] = $this->renderSection($section);
-            } else {
-                if ($section['heading'] !== '') {
-                    $omittedHeadings[] = $section['heading'];
-                }
+            } elseif ($section['heading'] !== '') {
+                $omittedHeadings[] = $section['heading'];
             }
         }
 
@@ -213,9 +161,6 @@ class DevPromptBuilder
         return $section['heading']."\n".$section['body'];
     }
 
-    /**
-     * Fallback tête+queue quand il n'y a pas de structure markdown.
-     */
     private function truncateHeadTail(string $text, int $maxChars): string
     {
         $half = (int) ($maxChars / 2) - 80;

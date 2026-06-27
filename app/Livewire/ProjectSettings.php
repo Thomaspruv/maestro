@@ -187,6 +187,8 @@ class ProjectSettings extends Component
             $modelConfig[$agentData['agent_type']] = $agentData['model'];
         }
 
+        unset($modelConfig['dev_runner']);
+
         $this->project->update(['model_config' => $modelConfig]);
 
         session()->flash('success', 'Agents mis à jour.');

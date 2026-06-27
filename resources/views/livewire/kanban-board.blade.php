@@ -9,10 +9,10 @@
             };
         @endphp
         <div class="mb-4 rounded-lg border px-4 py-3 {{ $bannerClass }}">
-            <p class="text-xs font-semibold">{{ $workerBanner['title'] }}</p>
-            <p class="mt-1 text-[11px] leading-relaxed opacity-90">{{ $workerBanner['message'] }}</p>
+            <p class="text-[13px] font-medium">{{ $workerBanner['title'] }}</p>
+            <p class="mt-1 text-[12px] leading-relaxed opacity-90">{{ $workerBanner['message'] }}</p>
             @if(($workerBanner['show_horizon_link'] ?? false) && config('queue.default') === 'redis')
-                <a href="{{ url('/horizon') }}" target="_blank" class="mt-2 inline-block text-[10px] font-semibold underline">
+                <a href="{{ url('/horizon') }}" target="_blank" class="mt-2 inline-block text-[12px] font-medium underline">
                     Ouvrir Horizon →
                 </a>
             @endif
@@ -26,10 +26,10 @@
 
     {{-- Statistiques --}}
     <div class="mb-5 grid grid-cols-4 gap-3">
-        <x-maestro.stat-card label="Tâches totales" :value="$stats['total']" icon="📋" />
-        <x-maestro.stat-card label="En cours" :value="$stats['in_progress']" icon="⚡" />
-        <x-maestro.stat-card label="Gates en attente" :value="$stats['pending_gates']" icon="🚧" />
-        <x-maestro.stat-card label="Coût réel" :value="'$'.number_format($stats['total_cost'], 2)" icon="💰" />
+        <x-ui.metric-card label="Tâches totales" :value="$stats['total']" />
+        <x-ui.metric-card label="En cours" :value="$stats['in_progress']" subColor="info" />
+        <x-ui.metric-card label="Gates en attente" :value="$stats['pending_gates']" subColor="warning" />
+        <x-ui.metric-card label="Coût réel" :value="'$'.number_format($stats['total_cost'], 2)" subColor="warning" />
     </div>
 
     {{-- Filtres --}}
@@ -68,13 +68,13 @@
             <div class="flex flex-col">
                 <div class="mb-2 flex items-center gap-2 px-1">
                     <span>{{ $meta['icon'] }}</span>
-                    <span class="text-xs font-semibold text-text-primary">{{ $meta['label'] }}</span>
-                    <span class="rounded bg-bg-overlay px-1.5 py-0.5 text-[10px] text-text-muted">{{ $columns[$status]->count() }}</span>
+                    <span class="text-[13px] font-medium text-maestro-text">{{ $meta['label'] }}</span>
+                    <span class="rounded bg-maestro-surface-2 px-1.5 py-0.5 text-[12px] text-maestro-subtle">{{ $columns[$status]->count() }}</span>
                 </div>
 
                 <div
                     wire:ignore
-                    class="kanban-column min-h-[400px] flex-1 space-y-2 rounded-lg border border-bg-overlay bg-bg-surface/50 p-2"
+                    class="kanban-column min-h-[400px] flex-1 space-y-2 rounded-lg border bg-maestro-surface p-2"
                     data-status="{{ $status }}"
                     id="kanban-{{ $status }}"
                 >
@@ -118,10 +118,10 @@
     @if($openTask)
         <div class="task-drawer-backdrop" wire:click="closeTask" aria-hidden="true"></div>
         <div class="task-drawer" role="dialog" aria-labelledby="task-drawer-title">
-            <div class="flex items-start justify-between gap-3 border-b border-bg-overlay px-5 py-4">
+            <div class="flex items-start justify-between gap-3 border-b px-5 py-4">
                 <div class="min-w-0">
-                    <p class="text-[10px] uppercase tracking-wide text-text-muted">Pipeline en direct</p>
-                    <h2 id="task-drawer-title" class="truncate text-sm font-bold text-text-primary">{{ $openTask->title }}</h2>
+                    <x-ui.label>Pipeline en direct</x-ui.label>
+                    <h2 id="task-drawer-title" class="truncate text-[16px] font-medium text-maestro-text">{{ $openTask->title }}</h2>
                     <div class="mt-2 flex flex-wrap gap-2">
                         <x-maestro.badge kind="task_status" :value="$openTask->status" />
                         <x-maestro.badge kind="task_type" :value="$openTask->type" />
@@ -140,7 +140,7 @@
             </div>
 
             <div class="task-drawer-body grid min-h-0 flex-1 grid-cols-[minmax(240px,280px)_1fr] gap-0">
-                <div class="overflow-y-auto border-r border-bg-overlay p-4">
+                <div class="overflow-y-auto border-r p-4">
                     @livewire('task-pipeline', ['task' => $openTask], key('drawer-pipeline-'.$openTask->id))
                 </div>
                 <div class="flex h-full min-h-0 flex-col overflow-hidden p-4">

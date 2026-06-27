@@ -64,6 +64,15 @@ class OrchestratorService
             return;
         }
 
+        if ($this->requiresHermesHandoff($task, $nextAgent)) {
+            $task->update([
+                'status' => TaskStatus::WaitingHermes,
+                'current_agent' => 'hermes',
+            ]);
+
+            return;
+        }
+
         $this->dispatchAgentRun($task, $nextAgent);
     }
 
@@ -213,7 +222,12 @@ class OrchestratorService
         $config = $task->project->pipeline_config ?? [];
         $type = $task->type->value;
 
-        return $config[$type] ?? $this->defaultPipeline($type);
+        $pipeline = $config[$type] ?? $this->defaultPipeline($type);
+
+        return array_values(array_filter(
+            $pipeline,
+            fn (string $agent) => $agent !== 'dev',
+        ));
     }
 
     /**
@@ -223,8 +237,20 @@ class OrchestratorService
     {
         return config("maestro.default_pipelines.{$type}")
             ?? config('maestro.default_pipelines.feature', [
-                'pm', 'ux', 'tech_lead', 'security', 'dev', 'qa', 'pr_expert', 'doc',
+                'pm', 'ux', 'tech_lead', 'security', 'qa', 'pr_expert', 'doc',
             ]);
+    }
+
+    private function requiresHermesHandoff(Task $task, string $nextAgent): bool
+    {
+        if ($nextAgent !== 'qa') {
+            return false;
+        }
+
+        return ! $task->agentRuns()
+            ->where('agent_type', 'dev')
+            ->where('status', AgentRunStatus::Completed)
+            ->exists();
     }
 
     /**

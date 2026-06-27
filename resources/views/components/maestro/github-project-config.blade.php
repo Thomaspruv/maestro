@@ -1,6 +1,7 @@
 @props([
     'connectRedirect' => null,
     'showContextToggle' => false,
+    'showTemplateOption' => false,
     'githubConnected' => false,
     'githubUsername' => null,
     'savedRepo' => null,
@@ -44,7 +45,37 @@
 
     <x-maestro.github-connect :redirect="$connectRedirect ?? url()->current()" :compact="true" />
 
-    @if($githubConnected)
+    @if($showTemplateOption && $githubConnected)
+        <div class="rounded-lg border border-bg-overlay bg-bg-surface/40 px-4 py-3">
+            <label class="flex items-start gap-2 text-xs text-text-secondary">
+                <input type="checkbox" wire:model.live="create_from_template" class="mt-0.5 rounded border-bg-overlay">
+                <span>
+                    <span class="font-semibold text-text-primary">Créer un nouveau dépôt depuis le template Maestro</span>
+                    <span class="mt-0.5 block text-[10px] text-text-muted">
+                        Génère un repo GitHub vierge à partir du template configuré ({{ config('maestro.github_template_repo') }}).
+                    </span>
+                </span>
+            </label>
+
+            @if($create_from_template ?? false)
+                <div class="mt-3 space-y-3 border-t border-bg-overlay pt-3">
+                    <x-maestro.input
+                        wire:model="new_repo_name"
+                        label="Nom du nouveau dépôt"
+                        placeholder="mon-projet-maestro"
+                        required
+                        :error="$errors->first('new_repo_name')"
+                    />
+                    <x-maestro.select wire:model="new_repo_visibility" label="Visibilité">
+                        <option value="private">Privé</option>
+                        <option value="public">Public</option>
+                    </x-maestro.select>
+                </div>
+            @endif
+        </div>
+    @endif
+
+    @if($githubConnected && ! ($create_from_template ?? false))
         <div>
             <div class="mb-2 flex items-center justify-between gap-2">
                 <p class="maestro-label mb-0">Choisir un dépôt</p>

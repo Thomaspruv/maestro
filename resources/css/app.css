@@ -3,48 +3,102 @@
 @tailwind utilities;
 
 @layer base {
+    :root {
+        --maestro-bg: #FAF6F0;
+        --maestro-surface: #FFFFFF;
+        --maestro-surface-2: #F0E8DC;
+        --maestro-border: rgba(80, 55, 30, 0.10);
+        --maestro-border-md: rgba(80, 55, 30, 0.16);
+
+        --maestro-accent: #0D9488;
+        --maestro-accent-rgb: 13 148 136;
+        --maestro-accent-hover: #0F766E;
+        --maestro-accent-light: #0F766E;
+        --maestro-accent-muted: #D1FAF5;
+        --maestro-accent-muted-rgb: 209 250 245;
+
+        --maestro-text-primary: #2C2419;
+        --maestro-text-secondary: #6B5C4A;
+        --maestro-text-muted: #9A8775;
+
+        --maestro-success: #15803D;
+        --maestro-success-rgb: 21 128 61;
+        --maestro-success-bg: #ECFDF3;
+        --maestro-success-border: rgba(21, 128, 61, 0.2);
+
+        --maestro-info: #0D9488;
+        --maestro-info-rgb: 13 148 136;
+        --maestro-info-bg: #F0FDFA;
+        --maestro-info-border: rgba(13, 148, 136, 0.2);
+
+        --maestro-warning: #B45309;
+        --maestro-warning-rgb: 180 83 9;
+        --maestro-warning-bg: #FFFBEB;
+        --maestro-warning-border: rgba(180, 83, 9, 0.2);
+
+        --maestro-danger: #B91C1C;
+        --maestro-danger-rgb: 185 28 28;
+        --maestro-danger-bg: #FEF2F2;
+        --maestro-danger-border: rgba(185, 28, 28, 0.2);
+
+        --maestro-neutral: #8B7355;
+        --maestro-neutral-bg: #F5EFE6;
+        --maestro-neutral-border: rgba(107, 92, 74, 0.2);
+    }
+
     body {
-        @apply bg-bg-base text-text-secondary text-xs antialiased;
+        @apply bg-maestro-bg font-normal text-[12px] text-maestro-muted antialiased;
     }
 }
 
 @layer components {
+    .maestro-global-topbar {
+        @apply fixed left-0 right-0 top-0 z-50 flex h-[52px] items-center justify-between border-b bg-maestro-bg px-4;
+    }
+
     .maestro-sidebar {
-        @apply fixed left-0 top-0 z-40 h-screen w-[220px] border-r border-bg-overlay bg-bg-surface;
+        @apply fixed left-0 top-[52px] z-40 flex h-[calc(100vh-52px)] w-56 flex-col border-r bg-maestro-bg;
     }
 
     .maestro-topbar {
-        @apply flex h-12 items-center justify-between border-b border-bg-overlay bg-bg-surface px-5;
+        @apply flex h-12 items-center justify-between border-b bg-maestro-bg px-5;
     }
 
     .maestro-content {
-        @apply ml-[220px] min-h-screen p-5;
+        @apply ml-56 mt-[52px] min-h-[calc(100vh-52px)] p-6;
     }
 
     .maestro-card {
-        @apply rounded-lg border border-bg-overlay bg-bg-elevated;
+        @apply rounded-lg border bg-maestro-surface;
     }
 
     .maestro-btn-primary {
-        @apply inline-flex items-center justify-center rounded-md bg-primary px-3.5 py-1.5 text-xs font-semibold text-white transition-colors hover:bg-primary-light;
+        @apply inline-flex items-center justify-center rounded-lg bg-maestro-accent px-3.5 py-1.5 text-[12px] font-medium text-white transition-colors hover:bg-maestro-accent-hover;
     }
 
     .maestro-btn-ghost {
-        @apply inline-flex items-center justify-center rounded-md border border-bg-overlay bg-transparent px-3.5 py-1.5 text-xs font-semibold text-text-secondary transition-colors hover:border-primary hover:text-text-primary;
+        @apply inline-flex items-center justify-center rounded-lg border border-md bg-transparent px-3.5 py-1.5 text-[12px] font-medium text-maestro-muted transition-colors hover:bg-maestro-surface hover:text-maestro-text;
     }
 
     .maestro-btn-danger {
-        @apply inline-flex items-center justify-center rounded-md border border-red-900 bg-danger-muted px-3.5 py-1.5 text-xs font-semibold text-danger;
+        @apply inline-flex items-center justify-center rounded-lg border px-3.5 py-1.5 text-[12px] font-medium transition-colors;
+        color: var(--maestro-danger);
+        border-color: var(--maestro-danger-border);
+        background: transparent;
+    }
+
+    .maestro-btn-danger:hover {
+        background: var(--maestro-danger-bg);
     }
 
     .maestro-btn-discovery {
-        @apply inline-flex items-center gap-2.5 rounded-lg border border-primary/40 bg-gradient-to-br from-primary-muted/80 to-bg-elevated text-xs transition-all;
-        box-shadow: 0 0 0 1px rgba(124, 58, 237, 0.08), 0 4px 14px rgba(124, 58, 237, 0.12);
+        @apply inline-flex items-center gap-2.5 rounded-lg border border-primary/40 bg-gradient-to-br from-primary-muted/80 to-maestro-surface-2 text-[12px] transition-all;
+        box-shadow: 0 0 0 1px rgba(13, 148, 136, 0.08), 0 4px 14px rgba(13, 148, 136, 0.12);
     }
 
     .maestro-btn-discovery:hover {
         @apply border-primary/60;
-        box-shadow: 0 0 0 1px rgba(124, 58, 237, 0.2), 0 6px 20px rgba(124, 58, 237, 0.2);
+        box-shadow: 0 0 0 1px rgba(13, 148, 136, 0.2), 0 6px 20px rgba(13, 148, 136, 0.2);
         transform: translateY(-1px);
     }
 
@@ -61,11 +115,11 @@
     }
 
     .maestro-nav-discovery {
-        @apply border border-primary/30 bg-primary-muted/40 font-semibold text-primary-light;
+        @apply border border-primary/30 bg-primary/10 font-medium text-maestro-accent;
     }
 
     .maestro-nav-discovery:hover {
-        @apply border-primary/50 bg-primary-muted;
+        @apply border-primary/50 bg-primary/20;
     }
 
     .discovery-progress-track {
@@ -78,7 +132,7 @@
     }
 
     .discovery-thinking {
-        @apply flex max-w-[85%] items-start gap-3 overflow-hidden rounded-lg border border-primary/30 bg-gradient-to-br from-primary-muted/50 to-bg-elevated px-4 py-3;
+        @apply flex max-w-[85%] items-start gap-3 overflow-hidden rounded-lg border border-primary/30 bg-gradient-to-br from-primary-muted/50 to-maestro-surface-2 px-4 py-3;
         animation: discovery-thinking-glow 2s ease-in-out infinite;
     }
 
@@ -145,27 +199,43 @@
     }
 
     .maestro-input {
-        @apply w-full rounded-md border border-bg-overlay bg-bg-surface px-2.5 py-2 text-xs text-text-primary placeholder:text-text-muted focus:border-primary focus:outline-none;
+        @apply w-full rounded-lg border bg-maestro-surface px-2.5 py-2 text-[12px] text-maestro-text placeholder:text-maestro-subtle focus:border-maestro-accent focus:outline-none;
     }
 
     .maestro-label {
-        @apply mb-1 block text-[10px] font-bold uppercase tracking-wider text-text-muted;
+        @apply mb-1 block text-[11px] font-medium uppercase tracking-wider text-maestro-subtle;
     }
 
     .maestro-section-title {
-        @apply text-[10px] font-bold uppercase tracking-wider text-text-muted;
+        @apply text-[11px] font-medium uppercase tracking-wider text-maestro-subtle;
     }
 
     .maestro-stat-card {
-        @apply rounded-[10px] border border-bg-overlay bg-bg-surface px-4 py-3.5;
+        @apply rounded-lg border bg-maestro-surface px-4 py-3.5;
     }
 
     .maestro-nav-item {
-        @apply flex items-center gap-2 rounded-md px-3 py-2 text-xs text-text-secondary transition-colors hover:bg-primary-muted hover:text-primary-light;
+        @apply flex items-center gap-2 rounded-lg px-3 py-2 text-[13px] text-maestro-muted transition-colors hover:bg-maestro-surface hover:text-maestro-text;
     }
 
     .maestro-nav-item-active {
-        @apply bg-primary-muted text-primary-light;
+        @apply bg-primary/10 text-maestro-accent;
+    }
+
+    .maestro-topnav-item {
+        @apply inline-flex items-center gap-1.5 whitespace-nowrap rounded-lg px-3 py-2 text-[13px] text-maestro-muted transition-colors hover:bg-maestro-surface hover:text-maestro-text;
+    }
+
+    .maestro-topnav-item-active {
+        @apply bg-primary/10 text-maestro-accent;
+    }
+
+    .maestro-project-item {
+        @apply block rounded-lg border border-transparent px-3 py-2 transition-colors hover:border hover:bg-maestro-surface;
+    }
+
+    .maestro-project-item-active {
+        @apply border-primary/30 bg-primary/10;
     }
 
     .maestro-pipeline-pill {
@@ -173,11 +243,11 @@
     }
 
     .maestro-pill-waiting {
-        @apply bg-[#1e1e28] text-[#555];
+        @apply bg-maestro-surface-2 text-maestro-subtle;
     }
 
     .maestro-pill-running {
-        @apply bg-primary-muted text-primary-light;
+        @apply bg-primary-muted text-maestro-accent;
         animation: pulse-glow 1.5s infinite;
     }
 
@@ -207,7 +277,9 @@
     }
 
     .pipeline-health-primary {
-        @apply border-primary/30 bg-primary-muted/20 text-primary-light;
+        border-color: rgba(13, 148, 136, 0.3);
+        background: rgba(13, 148, 136, 0.1);
+        color: var(--maestro-accent);
     }
 
     .pipeline-health-danger {
@@ -215,7 +287,7 @@
     }
 
     .pipeline-health-warning {
-        @apply border-warning/40 bg-warning-muted/20 text-warning;
+        @apply border-warning/40 bg-warning-muted text-warning;
     }
 
     .pipeline-health-success {
@@ -223,7 +295,8 @@
     }
 
     .pipeline-health-muted {
-        @apply border-bg-overlay bg-bg-surface/80 text-text-muted;
+        @apply border text-maestro-subtle;
+        background: color-mix(in srgb, var(--maestro-surface) 80%, transparent);
     }
 
     .pipeline-health-progress {
@@ -239,7 +312,7 @@
     }
 
     .maestro-empty-state {
-        @apply flex flex-col items-center justify-center rounded-lg border border-dashed border-bg-overlay py-12 text-center text-text-muted;
+        @apply flex flex-col items-center justify-center rounded-lg border border-dashed border-md py-12 text-center text-maestro-subtle;
     }
 
     .maestro-gate-block {
@@ -256,13 +329,13 @@
     }
 
     .desktop-only-message {
-        @apply fixed inset-0 z-50 hidden items-center justify-center bg-bg-base p-8 text-center lg:flex xl:hidden;
+        @apply fixed inset-0 z-50 hidden items-center justify-center bg-maestro-bg p-8 text-center lg:flex xl:hidden;
     }
 }
 
 @keyframes pulse-glow {
-    0%, 100% { box-shadow: 0 0 0 0 rgba(124, 58, 237, 0.4); }
-    50% { box-shadow: 0 0 8px 2px rgba(124, 58, 237, 0.3); }
+    0%, 100% { box-shadow: 0 0 0 0 rgba(13, 148, 136, 0.4); }
+    50% { box-shadow: 0 0 8px 2px rgba(13, 148, 136, 0.3); }
 }
 
 @keyframes gate-pulse {
@@ -271,8 +344,8 @@
 }
 
 @keyframes discovery-icon-pulse {
-    0%, 100% { box-shadow: 0 0 0 0 rgba(124, 58, 237, 0.25); }
-    50% { box-shadow: 0 0 10px 2px rgba(124, 58, 237, 0.35); }
+    0%, 100% { box-shadow: 0 0 0 0 rgba(13, 148, 136, 0.25); }
+    50% { box-shadow: 0 0 10px 2px rgba(13, 148, 136, 0.35); }
 }
 
 @keyframes discovery-progress {
@@ -281,8 +354,8 @@
 }
 
 @keyframes discovery-thinking-glow {
-    0%, 100% { box-shadow: 0 0 0 0 rgba(124, 58, 237, 0.1); }
-    50% { box-shadow: 0 0 12px 0 rgba(124, 58, 237, 0.15); }
+    0%, 100% { box-shadow: 0 0 0 0 rgba(13, 148, 136, 0.1); }
+    50% { box-shadow: 0 0 12px 0 rgba(13, 148, 136, 0.15); }
 }
 
 @keyframes discovery-emoji-bob {
@@ -325,11 +398,11 @@
 }
 
 .task-drawer-backdrop {
-    @apply fixed inset-0 z-40 bg-black/70;
+    @apply fixed inset-0 z-40 bg-[#2C2419]/30;
 }
 
 .task-drawer {
-    @apply fixed inset-y-0 right-0 z-50 flex w-[min(1100px,calc(100vw-220px))] flex-col border-l border-bg-overlay bg-bg-base shadow-2xl;
+    @apply fixed inset-y-0 right-0 z-50 flex w-[min(1100px,calc(100vw-14rem))] flex-col border-l bg-maestro-bg shadow-2xl;
     animation: pipeline-fade-in 0.2s ease-out;
 }
 
@@ -338,6 +411,7 @@
 }
 
 @media (max-width: 1199px) {
+    .maestro-global-topbar,
     .maestro-sidebar,
     .maestro-content {
         display: none !important;

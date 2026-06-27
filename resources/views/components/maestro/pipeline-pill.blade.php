@@ -1,15 +1,16 @@
 @props(['status' => 'waiting', 'label' => null])
 
 @php
-    $pillClass = match ($status) {
-        'running' => 'maestro-pill-running',
-        'done', 'completed' => 'maestro-pill-done',
-        'gate', 'waiting_gate' => 'maestro-pill-gate',
-        'error', 'failed' => 'maestro-pill-error',
-        default => 'maestro-pill-waiting',
-    };
+$uiStatus = match ($status) {
+    'running' => 'running',
+    'done', 'completed' => 'completed',
+    'gate', 'waiting_gate' => 'gate',
+    'error', 'failed' => 'failed',
+    'skipped' => 'skipped',
+    default => 'pending',
+};
 @endphp
 
-<span {{ $attributes->merge(['class' => "maestro-pipeline-pill {$pillClass}"]) }}>
+<x-ui.badge :status="$uiStatus" {{ $attributes }}>
     {{ $label ?? $slot }}
-</span>
+</x-ui.badge>

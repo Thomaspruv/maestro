@@ -14,7 +14,10 @@ class ProjectWizardTest extends TestCase
 
     public function test_step1_shows_validation_errors_when_only_name_is_filled(): void
     {
-        $user = User::factory()->create();
+        $user = User::factory()->create([
+            'github_token' => 'ghp_test_token_1234567890',
+            'github_username' => 'test-user',
+        ]);
 
         Livewire::actingAs($user)
             ->test(ProjectWizard::class)

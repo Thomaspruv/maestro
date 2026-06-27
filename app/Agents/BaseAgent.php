@@ -3,7 +3,7 @@
 namespace App\Agents;
 
 use App\Models\AgentRun;
-use App\Services\DevPromptBuilder;
+use App\Services\AgentOutputCondenser;
 
 abstract class BaseAgent
 {
@@ -20,7 +20,7 @@ abstract class BaseAgent
     {
         $task = $run->task;
         $inputs = $run->input ?? [];
-        $condenser = app(DevPromptBuilder::class);
+        $condenser = app(AgentOutputCondenser::class);
 
         $sections = [
             '## Tâche',

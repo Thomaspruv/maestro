@@ -24,11 +24,6 @@ class AgentCapabilities
         return config("maestro.builtin_agents.{$slug}.post_action");
     }
 
-    public static function isDev(string $slug): bool
-    {
-        return self::runner($slug) === 'dev';
-    }
-
     public static function isBuiltin(string $slug): bool
     {
         return array_key_exists($slug, config('maestro.builtin_agents', []));

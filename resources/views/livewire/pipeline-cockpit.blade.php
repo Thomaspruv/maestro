@@ -1,38 +1,31 @@
 <div class="space-y-6" @if($shouldPoll) wire:poll.5s="refreshSnapshot" @endif>
-    {{-- Header with title and cost badge --}}
-    <div class="flex items-start justify-between">
+    <div class="flex items-start justify-between gap-4">
         <div>
-            <h2 class="text-2xl font-bold text-gray-100">Pipeline Cockpit</h2>
-            <p class="text-gray-400 text-sm mt-1">Task: {{ $task->title }}</p>
+            <x-ui.heading-2>Pipeline Cockpit</x-ui.heading-2>
+            <p class="mt-1 text-[13px] text-maestro-muted">Tâche : {{ $task->title }}</p>
         </div>
 
-        <div class="text-right">
-            <div class="text-sm text-gray-400">Total Cost</div>
-            <div class="text-2xl font-bold text-amber-400">
-                ${{ number_format($snapshot['total_cost'] ?? 0, 4) }}
-            </div>
-            @if($snapshot['is_active'] ?? false)
-                <div class="text-xs text-blue-400 mt-1 animate-pulse">
-                    Pipeline running...
-                </div>
-            @endif
-        </div>
+        <x-ui.metric-card
+            label="Coût total"
+            :value="'$'.number_format($snapshot['total_cost'] ?? 0, 4)"
+            :sub="($snapshot['is_active'] ?? false) ? 'Pipeline en cours…' : null"
+            subColor="info"
+            class="min-w-[180px] text-right"
+        />
     </div>
 
-    {{-- Pipeline not started state --}}
     @if(($snapshot['steps'] ?? []) === [])
-        <div class="bg-gray-800 border border-gray-700 rounded-lg p-8 text-center">
-            <div class="text-gray-400 mb-4">
-                <svg class="w-12 h-12 mx-auto text-gray-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+        <x-ui.card class="py-12 text-center">
+            <div class="mb-4 text-maestro-subtle">
+                <svg class="mx-auto h-12 w-12" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                     <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"></path>
                 </svg>
             </div>
-            <p class="text-gray-300 font-medium">Pipeline not started</p>
-            <p class="text-gray-500 text-sm mt-2">Start the pipeline to see progress in real-time</p>
-        </div>
+            <p class="font-medium text-maestro-text">Pipeline non démarrée</p>
+            <p class="mt-2 text-[13px] text-maestro-subtle">Démarrez la pipeline pour voir la progression en temps réel</p>
+        </x-ui.card>
     @else
-        {{-- Pipeline steps timeline --}}
-        <div class="bg-gray-800 border border-gray-700 rounded-lg p-8">
+        <x-ui.card class="p-8">
             <div class="space-y-1">
                 @foreach($snapshot['steps'] ?? [] as $index => $step)
                     @if($step['type'] === 'agent')
@@ -60,17 +53,16 @@
                     @endif
                 @endforeach
             </div>
-        </div>
+        </x-ui.card>
 
-        {{-- Final status --}}
         @if($snapshot['status'] === 'done')
-            <div class="bg-green-900/20 border border-green-700/50 rounded-lg p-4 flex items-start gap-3">
-                <svg class="w-5 h-5 text-green-400 mt-0.5 flex-shrink-0" fill="currentColor" viewBox="0 0 20 20">
+            <div class="flex items-start gap-3 rounded-lg border p-4" style="border-color: var(--maestro-success-border); background: var(--maestro-success-bg);">
+                <svg class="mt-0.5 h-5 w-5 flex-shrink-0" style="color: var(--maestro-success)" fill="currentColor" viewBox="0 0 20 20">
                     <path fill-rule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clip-rule="evenodd" />
                 </svg>
                 <div>
-                    <p class="text-green-300 font-medium">Pipeline completed</p>
-                    <p class="text-green-400 text-sm">All agents executed successfully</p>
+                    <p class="font-medium" style="color: var(--maestro-success)">Pipeline terminée</p>
+                    <p class="text-[13px] text-maestro-muted">Tous les agents ont été exécutés avec succès</p>
                 </div>
             </div>
         @endif

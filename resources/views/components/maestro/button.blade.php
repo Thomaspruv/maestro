@@ -2,18 +2,17 @@
     'variant' => 'primary',
     'type' => 'button',
     'tag' => 'button',
+    'size' => 'sm',
 ])
 
 @php
-    $classes = match ($variant) {
-        'ghost' => 'maestro-btn-ghost',
-        'danger' => 'maestro-btn-danger',
-        default => 'maestro-btn-primary',
-    };
+$uiVariant = match ($variant) {
+    'ghost' => 'ghost',
+    'danger' => 'danger',
+    default => 'primary',
+};
 @endphp
 
-@if ($tag === 'a')
-    <a {{ $attributes->merge(['class' => $classes]) }}>{{ $slot }}</a>
-@else
-    <button type="{{ $type }}" {{ $attributes->merge(['class' => $classes]) }}>{{ $slot }}</button>
-@endif
+<x-ui.button :variant="$uiVariant" :size="$size" :type="$type" :tag="$tag" {{ $attributes }}>
+    {{ $slot }}
+</x-ui.button>

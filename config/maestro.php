@@ -2,10 +2,6 @@
 
 return [
 
-    'repos_path' => env('MAESTRO_REPOS_PATH', storage_path('repos')),
-
-    'max_dev_attempts' => 3,
-
     'max_gate_regenerations' => 2,
 
     'model_prices' => [
@@ -41,10 +37,10 @@ return [
     ],
 
     'default_pipelines' => [
-        'feature' => ['pm', 'ux', 'tech_lead', 'security', 'dev', 'qa', 'pr_expert', 'doc'],
-        'bug' => ['tech_lead', 'security', 'dev', 'qa', 'pr_expert', 'doc'],
-        'improvement' => ['pm', 'tech_lead', 'security', 'dev', 'qa', 'pr_expert', 'doc'],
-        'chore' => ['tech_lead', 'dev', 'pr_expert'],
+        'feature' => ['pm', 'ux', 'tech_lead', 'security', 'qa', 'pr_expert', 'doc'],
+        'bug' => ['tech_lead', 'security', 'qa', 'pr_expert', 'doc'],
+        'improvement' => ['pm', 'tech_lead', 'security', 'qa', 'pr_expert', 'doc'],
+        'chore' => ['tech_lead', 'pr_expert'],
     ],
 
     'default_gate_config' => [
@@ -78,7 +74,6 @@ return [
         'ux' => ['runner' => 'api'],
         'tech_lead' => ['runner' => 'api'],
         'security' => ['runner' => 'api'],
-        'dev' => ['runner' => 'dev', 'queue' => 'dev-agent'],
         'qa' => ['runner' => 'api'],
         'pr_expert' => ['runner' => 'api', 'post_action' => 'open_pr'],
         'doc' => ['runner' => 'api'],
@@ -91,18 +86,20 @@ return [
     ],
 
     'agent_max_tokens' => [
-        'pm'        => 8192,
-        'ux'        => 8192,
+        'pm' => 8192,
+        'ux' => 8192,
         'tech_lead' => 8192,
-        'security'  => 8192,
-        'qa'        => 4096,
+        'security' => 8192,
+        'qa' => 4096,
         'pr_expert' => 4096,
-        'doc'       => 2048,
+        'doc' => 2048,
     ],
 
     'anthropic_timeout' => (int) env('ANTHROPIC_TIMEOUT', 180),
 
     'anthropic_discovery_timeout' => (int) env('ANTHROPIC_DISCOVERY_TIMEOUT', 180),
+
+    'discovery_max_history' => (int) env('MAESTRO_DISCOVERY_MAX_HISTORY', 10),
 
     /*
     | Troncature des outputs agents précédents dans les prompts API (~2000 tokens).
@@ -132,17 +129,20 @@ return [
 
     'github_oauth_in_local' => env('GITHUB_OAUTH_IN_LOCAL', false),
 
-    'claude_code_path' => env('CLAUDE_CODE_PATH'),
-
     /*
-    | Runner Dev Agent : cli (Claude Code local) ou api (Anthropic tool use, portable).
+    | Dépôt template GitHub pour créer de nouveaux projets (format owner/repo).
+    | Ex. Thomaspruv/maestro-template — laisser vide pour désactiver l'option wizard.
     */
-    'dev_runner' => env('MAESTRO_DEV_RUNNER', 'cli'),
+    'github_template_repo' => env('MAESTRO_GITHUB_TEMPLATE_REPO', ''),
 
-    'dev_claude_timeout' => (int) env('MAESTRO_DEV_CLAUDE_TIMEOUT', 900),
-
-    'dev_api_timeout' => (int) env('MAESTRO_DEV_API_TIMEOUT', 120),
-
-    'dev_api_max_iterations' => (int) env('MAESTRO_DEV_API_MAX_ITERATIONS', 40),
+    'mcp' => [
+        'resource_url' => rtrim((string) env('APP_URL', 'http://localhost'), '/').'/api/mcp',
+        'oauth' => [
+            'issuer' => rtrim((string) env('APP_URL', 'http://localhost'), '/'),
+            'access_token_ttl' => (int) env('MAESTRO_MCP_ACCESS_TOKEN_TTL', 3600),
+            'refresh_token_ttl' => (int) env('MAESTRO_MCP_REFRESH_TOKEN_TTL', 2592000),
+            'scopes' => ['mcp:read', 'mcp:write'],
+        ],
+    ],
 
 ];

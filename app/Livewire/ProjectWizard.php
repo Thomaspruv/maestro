@@ -15,6 +15,7 @@ use App\Models\UserAgent;
 use App\Services\CostEstimatorService;
 use App\Services\GitHubConnectionService;
 use App\Services\GitHubContextReader;
+use App\Services\GitHubTemplateService;
 use Database\Seeders\UserAgentSeeder;
 use Illuminate\Support\Facades\Auth;
 use Livewire\Attributes\On;
@@ -35,6 +36,12 @@ class ProjectWizard extends Component
     public string $github_branch = 'main';
 
     public bool $read_context_from_repo = false;
+
+    public bool $create_from_template = false;
+
+    public string $new_repo_name = '';
+
+    public string $new_repo_visibility = 'private';
 
     public string $stack = '';
 
@@ -79,6 +86,9 @@ class ProjectWizard extends Component
             $this->description = $data['step1']['description'] ?? '';
             $this->github_repo = $data['step1']['github_repo'] ?? '';
             $this->github_branch = $data['step1']['github_branch'] ?? 'main';
+            $this->create_from_template = (bool) ($data['step1']['create_from_template'] ?? false);
+            $this->new_repo_name = $data['step1']['new_repo_name'] ?? '';
+            $this->new_repo_visibility = $data['step1']['new_repo_visibility'] ?? 'private';
         }
 
         $this->bootGithubRepositories();
@@ -139,6 +149,7 @@ class ProjectWizard extends Component
             'progress' => ($this->step / 4) * 100,
             'githubConnected' => Auth::user()->hasGithubConnection(),
             'githubUsername' => Auth::user()->github_username,
+            'githubTemplateEnabled' => filled(config('maestro.github_template_repo')),
         ])->layout('layouts.wizard', [
             'step' => $this->step,
             'progress' => ($this->step / 4) * 100,
@@ -148,24 +159,47 @@ class ProjectWizard extends Component
 
     public function saveStep1(): void
     {
-        $this->normalizeGithubRepoInput();
-
-        $this->validate([
-            'name' => ['required', 'string', 'max:255'],
-            'description' => ['nullable', 'string', 'max:2000'],
-            'github_repo' => ['required', 'string', 'regex:/^[\w.\-]+\/[\w.\-]+$/'],
-            'github_branch' => ['required', 'string', 'max:255'],
-        ], [
-            'name.required' => 'Le nom du projet est obligatoire.',
-            'github_repo.required' => 'Le dépôt GitHub est obligatoire (format owner/repo).',
-            'github_repo.regex' => 'Format invalide — utilisez owner/repo (ex. mon-org/mon-projet).',
-            'github_branch.required' => 'La branche par défaut est obligatoire.',
-        ]);
-
         if (! Auth::user()->hasGithubConnection()) {
             $this->addError('github_repo', 'Connectez votre compte GitHub dans Paramètres ou via le bouton ci-dessous.');
 
             return;
+        }
+
+        if ($this->create_from_template && filled(config('maestro.github_template_repo'))) {
+            $this->validate([
+                'name' => ['required', 'string', 'max:255'],
+                'description' => ['nullable', 'string', 'max:2000'],
+                'new_repo_name' => ['required', 'string', 'max:100', 'regex:/^[\w.\-]+$/'],
+                'new_repo_visibility' => ['required', 'in:private,public'],
+            ], [
+                'name.required' => 'Le nom du projet est obligatoire.',
+                'new_repo_name.required' => 'Le nom du nouveau dépôt est obligatoire.',
+                'new_repo_name.regex' => 'Nom invalide — utilisez lettres, chiffres, points ou tirets.',
+            ]);
+
+            $created = app(GitHubTemplateService::class)->createFromTemplate(
+                Auth::user(),
+                $this->new_repo_name,
+                $this->description ?: $this->name,
+                $this->new_repo_visibility,
+            );
+
+            $this->github_repo = $created['full_name'];
+            $this->github_branch = $created['default_branch'];
+        } else {
+            $this->normalizeGithubRepoInput();
+
+            $this->validate([
+                'name' => ['required', 'string', 'max:255'],
+                'description' => ['nullable', 'string', 'max:2000'],
+                'github_repo' => ['required', 'string', 'regex:/^[\w.\-]+\/[\w.\-]+$/'],
+                'github_branch' => ['required', 'string', 'max:255'],
+            ], [
+                'name.required' => 'Le nom du projet est obligatoire.',
+                'github_repo.required' => 'Le dépôt GitHub est obligatoire (format owner/repo).',
+                'github_repo.regex' => 'Format invalide — utilisez owner/repo (ex. mon-org/mon-projet).',
+                'github_branch.required' => 'La branche par défaut est obligatoire.',
+            ]);
         }
 
         $github = app(GitHubConnectionService::class);
@@ -175,6 +209,9 @@ class ProjectWizard extends Component
             'description' => $this->description,
             'github_repo' => $github->normalizeRepo($this->github_repo),
             'github_branch' => $this->github_branch,
+            'create_from_template' => $this->create_from_template,
+            'new_repo_name' => $this->new_repo_name,
+            'new_repo_visibility' => $this->new_repo_visibility,
         ];
 
         $token = Auth::user()->github_token;

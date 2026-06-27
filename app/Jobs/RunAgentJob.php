@@ -10,7 +10,6 @@ use App\Models\AgentRun;
 use App\Models\Task;
 use App\Services\AgentCapabilities;
 use App\Services\AgentRunnerService;
-use App\Services\DevAgentRunner;
 use App\Services\NotificationService;
 use App\Services\OrchestratorService;
 use Illuminate\Bus\Batchable;
@@ -43,17 +42,11 @@ class RunAgentJob implements ShouldQueue
         public ?int $agentRunId = null,
     ) {
         $this->onQueue(AgentCapabilities::queue($this->agentType));
-
-        if (AgentCapabilities::isDev($this->agentType)) {
-            $this->timeout = (int) config('maestro.dev_claude_timeout', 900) + 60;
-        } else {
-            $this->timeout = (int) config('maestro.anthropic_timeout', 180) + 120;
-        }
+        $this->timeout = (int) config('maestro.anthropic_timeout', 180) + 120;
     }
 
     public function handle(
         AgentRunnerService $runner,
-        DevAgentRunner $devRunner,
         OrchestratorService $orchestrator,
         NotificationService $notifications,
     ): void {
@@ -91,9 +84,7 @@ class RunAgentJob implements ShouldQueue
         broadcast(new AgentRunUpdated($run->fresh()));
 
         try {
-            $result = AgentCapabilities::isDev($this->agentType)
-                ? $devRunner->run($run)
-                : $runner->run($run);
+            $result = $runner->run($run);
 
             $run->update([
                 'status' => AgentRunStatus::Completed,

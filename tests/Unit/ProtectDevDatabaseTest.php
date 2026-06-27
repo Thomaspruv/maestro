@@ -70,4 +70,15 @@ class ProtectDevDatabaseTest extends TestCase
 
         ProtectDevDatabase::enforceTestingConnection();
     }
+
+    #[Test]
+    public function it_provides_app_key_for_clone_test_runs(): void
+    {
+        $env = ProtectDevDatabase::testingProcessEnvironment();
+
+        $this->assertSame('testing', $env['APP_ENV']);
+        $this->assertSame('sqlite', $env['DB_CONNECTION']);
+        $this->assertSame(':memory:', $env['DB_DATABASE']);
+        $this->assertStringStartsWith('base64:', $env['APP_KEY']);
+    }
 }

@@ -89,7 +89,7 @@ class PipelineCockpitTest extends TestCase
             ->test(PipelineCockpit::class, ['task' => $task])
             ->call('approveGate', $gate->id);
 
-        $this->assertEqual(GateStatus::Approved, $gate->fresh()->status);
+        $this->assertSame(GateStatus::Approved, $gate->fresh()->status);
     }
 
     public function test_cockpit_rejects_gate(): void
@@ -118,7 +118,7 @@ class PipelineCockpitTest extends TestCase
             ->call('rejectGate', $gate->id, 'feedback text');
 
         $gate->refresh();
-        $this->assertEqual(GateStatus::Pending, $gate->status);
+        $this->assertSame(GateStatus::Pending, $gate->status);
         $this->assertStringContainsString('feedback text', $gate->feedback ?? '');
     }
 

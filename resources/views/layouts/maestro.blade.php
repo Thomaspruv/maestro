@@ -5,92 +5,28 @@
     <meta name="viewport" content="width=device-width, initial-scale=1">
     <meta name="csrf-token" content="{{ csrf_token() }}">
     <title>{{ $title ?? 'Maestro' }}</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500&family=JetBrains+Mono:wght@400&display=swap" rel="stylesheet">
     @vite(['resources/css/app.css', 'resources/js/app.js'])
     @livewireStyles
 </head>
-<body>
+<body class="bg-maestro-bg text-maestro-text min-h-screen">
     <div class="desktop-only-message">
         <div>
             <div class="mb-3 text-4xl">⚒️</div>
-            <h1 class="mb-2 text-lg font-semibold text-text-primary">Maestro — Bureau uniquement</h1>
-            <p class="max-w-sm text-sm">Cette interface nécessite un écran d'au moins 1200px de large.</p>
+            <h1 class="mb-2 text-lg font-medium text-maestro-text">Maestro — Bureau uniquement</h1>
+            <p class="max-w-sm text-[12px] text-maestro-muted">Cette interface nécessite un écran d'au moins 1200px de large.</p>
         </div>
     </div>
 
-    <aside class="maestro-sidebar flex flex-col">
-        <div class="border-b border-bg-overlay px-4 py-4">
-            <a href="{{ route('dashboard') }}" class="flex items-center gap-2 text-sm font-bold text-text-primary">
-                <span>⚒️</span>
-                <span>Maestro</span>
-                <span class="rounded bg-primary-muted px-1.5 py-0.5 text-[9px] font-semibold uppercase tracking-wider text-primary-light">Beta</span>
-            </a>
-        </div>
+    <x-topbar />
 
-        <nav class="flex-1 space-y-0.5 px-2 py-3">
-            <a href="{{ route('dashboard') }}"
-               class="maestro-nav-item {{ request()->routeIs('dashboard') ? 'maestro-nav-item-active' : '' }}">
-                📊 Dashboard
-            </a>
-            <a href="{{ route('projects.index') }}"
-               class="maestro-nav-item {{ request()->routeIs('projects.*') && ! request()->routeIs('projects.costs.*') && ! request()->routeIs('projects.discovery') ? 'maestro-nav-item-active' : '' }}">
-                📁 Projets
-            </a>
-            @isset($currentProject)
-                <a href="{{ route('projects.discovery', $currentProject) }}"
-                   class="maestro-nav-item {{ request()->routeIs('projects.discovery') ? 'maestro-nav-item-active maestro-nav-discovery' : 'maestro-nav-discovery' }}">
-                    <span class="discovery-btn-icon inline-flex h-5 w-5 items-center justify-center rounded text-[11px]">🤖</span>
-                    Discovery IA
-                </a>
-            @endisset
-            <a href="{{ route('agents.index') }}"
-               class="maestro-nav-item {{ request()->routeIs('agents.*') ? 'maestro-nav-item-active' : '' }}">
-                🤖 Agents
-            </a>
-            <a href="{{ route('costs.global') }}"
-               class="maestro-nav-item {{ request()->routeIs('costs.global') ? 'maestro-nav-item-active' : '' }}">
-                💰 Coûts global
-            </a>
-            <a href="{{ route('settings.edit') }}"
-               class="maestro-nav-item {{ request()->routeIs('settings.*') ? 'maestro-nav-item-active' : '' }}">
-                ⚙️ Paramètres
-            </a>
-        </nav>
-
-        @isset($currentProject)
-            <div class="border-t border-bg-overlay p-3">
-                <p class="maestro-section-title mb-2">Projet actif</p>
-                <div class="maestro-card px-3 py-2">
-                    <p class="truncate text-xs font-semibold text-text-primary">{{ $currentProject->name }}</p>
-                    <p class="truncate text-[10px] text-text-muted">{{ $currentProject->github_repo }}</p>
-                    @if(isset($userProjects) && $userProjects->count() > 1)
-                        <select
-                            class="maestro-input mt-2 py-1 text-[10px]"
-                            onchange="if (this.value) window.location.href = this.value"
-                        >
-                            @foreach($userProjects as $p)
-                                <option value="{{ route('projects.show', $p) }}" @selected($p->id === $currentProject->id)>
-                                    {{ $p->name }}
-                                </option>
-                            @endforeach
-                        </select>
-                    @endif
-                    <x-maestro.discovery-button :project="$currentProject" size="full" class="mt-3" />
-                </div>
-            </div>
-        @endisset
-
-        <div class="border-t border-bg-overlay p-3">
-            <p class="truncate text-[10px] text-text-muted">{{ auth()->user()->name }}</p>
-            <form method="POST" action="{{ route('logout') }}" class="mt-1">
-                @csrf
-                <button type="submit" class="text-[10px] text-text-faint hover:text-danger">Déconnexion</button>
-            </form>
-        </div>
-    </aside>
+    <x-sidebar />
 
     <div class="maestro-content">
         <header class="maestro-topbar -mx-5 -mt-5 mb-5">
-            <h1 class="text-sm font-semibold text-text-primary">@yield('title', $title ?? 'Maestro')</h1>
+            <h1 class="text-[16px] font-medium text-maestro-text">@yield('title', $title ?? 'Maestro')</h1>
             <div class="flex items-center gap-2">
                 @hasSection('actions')
                     @yield('actions')
@@ -101,12 +37,12 @@
         </header>
 
         @if(session('success'))
-            <div class="mb-4 rounded-md border border-success/30 bg-success-muted px-3 py-2 text-xs text-success">
+            <div class="mb-4 rounded-lg border px-3 py-2 text-[12px]" style="border-color: var(--maestro-success-border); background: var(--maestro-success-bg); color: var(--maestro-success);">
                 {{ session('success') }}
             </div>
         @endif
         @if(session('error'))
-            <div class="mb-4 rounded-md border border-danger/30 bg-danger-muted px-3 py-2 text-xs text-danger">
+            <div class="mb-4 rounded-lg border px-3 py-2 text-[12px]" style="border-color: var(--maestro-danger-border); background: var(--maestro-danger-bg); color: var(--maestro-danger);">
                 {{ session('error') }}
             </div>
         @endif

@@ -52,6 +52,14 @@ class User extends Authenticatable
         return $this->hasMany(CostLog::class);
     }
 
+    /**
+     * @return HasMany<McpToken, $this>
+     */
+    public function mcpTokens(): HasMany
+    {
+        return $this->hasMany(McpToken::class);
+    }
+
     public function hasGithubConnection(): bool
     {
         return filled($this->github_token);
