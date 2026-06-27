@@ -58,7 +58,7 @@ class GitHubConnect extends Component
     {
         $user = Auth::user();
 
-        return view('livewire.github-connect', [
+        return view('components.github-connect-panel', [
             'authMode' => $github->authMode(),
             'tokenUrl' => $github->personalAccessTokenUrl(),
             'oauthConfigured' => $github->isOAuthConfigured(),

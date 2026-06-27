@@ -145,6 +145,7 @@ hermes gateway telegram
 ## Checklist post-déploiement
 
 - [ ] `php artisan migrate --force`
+- [ ] `php artisan view:clear` (obligatoire après changement de vues Livewire)
 - [ ] `php artisan config:cache`
 - [ ] `php artisan route:cache`
 - [ ] `php artisan view:cache`
