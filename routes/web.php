@@ -31,6 +31,9 @@ Route::post('/webhooks/github', GitHubWebhookController::class)
     ->middleware(VerifyGitHubWebhook::class)
     ->name('webhooks.github');
 
+Route::get('/settings/mcp/docs', [McpDocumentationController::class, 'show'])
+    ->name('settings.mcp.docs');
+
 Route::middleware(['auth', 'verified'])->group(function () {
     Route::post('/logout', function (Logout $logout) {
         $logout();
@@ -46,7 +49,6 @@ Route::middleware(['auth', 'verified'])->group(function () {
         Route::put('/api-key', [ApiKeyController::class, 'update'])->name('api-key.update');
         Route::put('/budget', [BudgetController::class, 'update'])->name('budget.update');
         Route::get('/mcp', [McpSettingsController::class, 'edit'])->name('mcp');
-        Route::get('/mcp/docs', [McpDocumentationController::class, 'show'])->name('mcp.docs');
         Route::post('/mcp-tokens', [McpTokenController::class, 'store'])->name('mcp-tokens.store');
         Route::delete('/mcp-tokens/{mcpToken}', [McpTokenController::class, 'destroy'])->name('mcp-tokens.destroy');
         Route::put('/github', [GitHubAccountController::class, 'update'])->name('github.update');

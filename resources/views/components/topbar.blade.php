@@ -40,7 +40,7 @@
                 💰 Coûts global
             </a>
             <a href="{{ route('settings.mcp') }}"
-               class="maestro-topnav-item {{ request()->routeIs('settings.mcp') ? 'maestro-topnav-item-active' : '' }}">
+               class="maestro-topnav-item {{ request()->routeIs('settings.mcp*') ? 'maestro-topnav-item-active' : '' }}">
                 🔌 Intégrations
             </a>
             <a href="{{ route('settings.edit') }}"
@@ -51,10 +51,14 @@
     </div>
 
     <div class="flex shrink-0 items-center gap-2 sm:gap-3">
-        <p class="hidden max-w-[140px] truncate text-[12px] text-maestro-subtle sm:block">{{ auth()->user()->name }}</p>
-        <form method="POST" action="{{ route('logout') }}">
-            @csrf
-            <button type="submit" class="text-[12px] text-maestro-subtle hover:text-[var(--maestro-danger)]">Déconnexion</button>
-        </form>
+        @auth
+            <p class="hidden max-w-[140px] truncate text-[12px] text-maestro-subtle sm:block">{{ auth()->user()->name }}</p>
+            <form method="POST" action="{{ route('logout') }}">
+                @csrf
+                <button type="submit" class="text-[12px] text-maestro-subtle hover:text-[var(--maestro-danger)]">Déconnexion</button>
+            </form>
+        @else
+            <a href="{{ route('login') }}" class="text-[12px] text-maestro-subtle hover:text-maestro-accent">Connexion</a>
+        @endauth
     </div>
 </header>

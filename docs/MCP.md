@@ -13,7 +13,7 @@ Guide d'intégration pour **Hermes** et **Claude** (Code / Cowork).
 | **Headers** | `Content-Type: application/json` |
 | **Auth** | `Authorization: Bearer <TOKEN>` |
 
-**Où trouver l'URL exacte :** Maestro → **Paramètres → Intégrations MCP → Documentation API**
+**Où trouver l'URL exacte :** page publique **Paramètres → Intégrations MCP → Documentation API** (`/settings/mcp/docs`)
 
 > Utilisez toujours l'URL affichée dans l'interface Maestro, pas une URL devinée.
 
