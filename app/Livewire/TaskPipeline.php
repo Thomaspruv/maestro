@@ -9,7 +9,7 @@ use App\Models\Task;
 use App\Services\GateReviewService;
 use App\Services\OrchestratorService;
 use App\Services\PipelineHealthService;
-use App\Services\ProjectAgentSyncService;
+use App\Services\ProjectRoleSyncService;
 use App\Support\PipelineActivity;
 use Livewire\Attributes\On;
 use Livewire\Component;
@@ -22,12 +22,12 @@ class TaskPipeline extends Component
 
     public function mount(Task $task): void
     {
-        $this->task = $task->load(['agentRuns', 'gates', 'project']);
+        $this->task = $task->load(['pipelineSteps', 'gates', 'project']);
         $this->syncSelectionToActiveAgent();
     }
 
-    #[On('echo:task.{task.id},AgentRunUpdated')]
-    public function onAgentRunUpdated(): void
+    #[On('echo:task.{task.id},PipelineStepUpdated')]
+    public function onPipelineStepUpdated(): void
     {
         $this->refreshTask();
     }
@@ -40,7 +40,7 @@ class TaskPipeline extends Component
 
     public function refreshTask(): void
     {
-        $this->task->refresh()->load(['agentRuns', 'gates', 'project']);
+        $this->task->refresh()->load(['pipelineSteps', 'gates', 'project']);
         $this->syncSelectionToActiveAgent();
     }
 
@@ -53,7 +53,7 @@ class TaskPipeline extends Component
     public function startPipeline(): void
     {
         $this->authorize('update', $this->task);
-        $this->task->update(['status' => TaskStatus::InProgress, 'current_agent' => null]);
+        $this->task->update(['status' => TaskStatus::InProgress, 'current_role' => null]);
         app(OrchestratorService::class)->advance($this->task->fresh());
         $this->refreshTask();
     }
@@ -71,7 +71,7 @@ class TaskPipeline extends Component
 
         $gateReview->approve($gate);
         $this->refreshTask();
-        $this->dispatch('agent-selected', runId: $gate->agent_run_id);
+        $this->dispatch('agent-selected', runId: $gate->pipeline_step_id);
         $this->dispatch('gate-reviewed');
     }
 
@@ -79,13 +79,13 @@ class TaskPipeline extends Component
     {
         $orchestrator = app(OrchestratorService::class);
         $pipeline = $orchestrator->getPipelineForTask($this->task);
-        $runsByAgent = $this->task->agentRuns->keyBy(fn ($r) => $r->agent_type);
+        $runsByAgent = $this->task->pipelineSteps->keyBy(fn ($r) => $r->role);
         $pendingGates = $this->task->gates->filter(
             fn ($gate) => $gate->status === GateStatus::Pending
         );
         $health = app(PipelineHealthService::class)->forTask($this->task, $pipeline);
 
-        $labelService = app(ProjectAgentSyncService::class);
+        $labelService = app(ProjectRoleSyncService::class);
         $agentLabels = $labelService->resolveLabelsForUser($this->task->project->user);
 
         return view('livewire.task-pipeline', [
@@ -95,7 +95,7 @@ class TaskPipeline extends Component
             'agentLabels' => $agentLabels,
             'health' => $health,
             'shouldPoll' => PipelineActivity::shouldPoll($this->task),
-            'currentAgent' => $health['current_agent'],
+            'currentAgent' => $health['current_role'],
         ]);
     }
 
@@ -107,8 +107,8 @@ class TaskPipeline extends Component
         if ($active && $this->selectedRunId !== $active->id) {
             $this->selectedRunId = $active->id;
             $this->dispatch('agent-selected', runId: $active->id);
-        } elseif (! $this->selectedRunId && $this->task->agentRuns->isNotEmpty()) {
-            $last = $this->task->agentRuns->sortByDesc('id')->first();
+        } elseif (! $this->selectedRunId && $this->task->pipelineSteps->isNotEmpty()) {
+            $last = $this->task->pipelineSteps->sortByDesc('id')->first();
             $this->selectedRunId = $last?->id;
             if ($last) {
                 $this->dispatch('agent-selected', runId: $last->id);

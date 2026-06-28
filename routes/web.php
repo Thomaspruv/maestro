@@ -1,11 +1,11 @@
 <?php
 
-use App\Http\Controllers\AgentRuns\AgentRunController;
+use App\Http\Controllers\PipelineSteps\PipelineStepController;
 use App\Http\Controllers\Costs\CostController;
 use App\Http\Controllers\DashboardController;
 use App\Http\Controllers\Gates\GateController;
 use App\Http\Controllers\GitHub\GitHubOAuthController;
-use App\Http\Controllers\Projects\ProjectAgentController;
+use App\Http\Controllers\Projects\ProjectRoleController;
 use App\Http\Controllers\Projects\ProjectController;
 use App\Http\Controllers\Projects\ProjectPipelineController;
 use App\Http\Controllers\Projects\ProjectSettingsController;
@@ -67,9 +67,9 @@ Route::middleware(['auth', 'verified'])->group(function () {
 
         Route::get('/{project}/settings', [ProjectSettingsController::class, 'edit'])->name('settings.edit');
         Route::put('/{project}/settings', [ProjectSettingsController::class, 'update'])->name('settings.update');
-        Route::put('/{project}/settings/agents', [ProjectAgentController::class, 'update'])->name('settings.agents.update');
+        Route::put('/{project}/settings/roles', [ProjectRoleController::class, 'update'])->name('settings.roles.update');
         Route::put('/{project}/settings/pipeline', [ProjectPipelineController::class, 'update'])->name('settings.pipeline.update');
-        Route::post('/{project}/settings/agents/{type}/test', [ProjectAgentController::class, 'test'])->name('settings.agents.test');
+        Route::post('/{project}/settings/roles/{type}/test', [ProjectRoleController::class, 'test'])->name('settings.roles.test');
 
         Route::get('/{project}/costs', [CostController::class, 'index'])->name('costs.index');
 
@@ -93,12 +93,10 @@ Route::middleware(['auth', 'verified'])->group(function () {
 
     Route::get('/costs', [CostController::class, 'global'])->name('costs.global');
 
-    Route::view('/agents', 'agents.index')->name('agents.index');
-
     Route::post('/gates/{gate}/approve', [GateController::class, 'approve'])->name('gates.approve');
     Route::post('/gates/{gate}/reject', [GateController::class, 'reject'])->name('gates.reject');
 
-    Route::put('/agent-runs/{run}/output', [AgentRunController::class, 'updateOutput'])->name('agent-runs.output.update');
+    Route::put('/pipeline-steps/{step}/output', [PipelineStepController::class, 'updateOutput'])->name('pipeline-steps.output.update');
 
     Route::prefix('auth/github')->name('github.')->group(function () {
         Route::get('/', [GitHubOAuthController::class, 'redirect'])->name('redirect');

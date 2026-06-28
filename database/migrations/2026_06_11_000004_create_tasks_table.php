@@ -22,7 +22,7 @@ return new class extends Migration
             $table->string('priority')->default('medium');
             $table->string('status')->default('backlog');
             $table->string('mode');
-            $table->string('current_agent')->nullable();
+            $table->string('current_role')->nullable();
             $table->string('github_branch')->nullable();
             $table->string('github_pr_url')->nullable();
             $table->integer('github_pr_number')->nullable();

@@ -17,7 +17,7 @@
             <x-maestro.textarea name="description" label="Description" rows="4" :error="$errors->first('description')">{{ old('description') }}</x-maestro.textarea>
             <x-maestro.input name="module" label="Module" :value="old('module')" :error="$errors->first('module')" placeholder="ex: auth, billing..." />
 
-            <div class="grid grid-cols-3 gap-3">
+            <div class="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-3">
                 <x-maestro.select name="type" label="Type" :error="$errors->first('type')">
                     <option value="feature" @selected(old('type', 'feature') === 'feature')>Fonctionnalité</option>
                     <option value="bug" @selected(old('type') === 'bug')>Bug</option>

@@ -2,9 +2,9 @@
 
 namespace Tests\Unit\Services\Mcp;
 
-use App\Enums\AgentRunStatus;
+use App\Enums\PipelineStepStatus;
 use App\Enums\TaskStatus;
-use App\Models\AgentRun;
+use App\Models\PipelineStep;
 use App\Models\Project;
 use App\Models\Task;
 use App\Services\Mcp\HermesTaskPresenter;
@@ -32,12 +32,12 @@ class HermesTaskPresenterTest extends TestCase
         $task = Task::factory()->create([
             'status' => TaskStatus::WaitingHermes,
         ]);
-        AgentRun::factory()->create([
+        PipelineStep::factory()->create([
             'task_id' => $task->id,
-            'agent_type' => 'dev',
-            'status' => AgentRunStatus::Completed,
+            'role' => 'dev',
+            'status' => PipelineStepStatus::Completed,
         ]);
 
-        $this->assertFalse(app(HermesTaskPresenter::class)->isAwaitingHermes($task->fresh('agentRuns')));
+        $this->assertFalse(app(HermesTaskPresenter::class)->isAwaitingHermes($task->fresh('pipelineSteps')));
     }
 }

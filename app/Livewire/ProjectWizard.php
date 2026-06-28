@@ -2,21 +2,21 @@
 
 namespace App\Livewire;
 
-use App\Enums\AgentType;
+use App\Enums\PipelineRoleSlug;
 use App\Enums\ProjectStatus;
 use App\Enums\TaskMode;
 use App\Enums\TaskType;
 use App\Livewire\Concerns\InteractsWithGitHubRepositories;
 use App\Models\Project;
-use App\Models\ProjectAgent;
+use App\Models\ProjectRole;
 use App\Models\ProjectWizardDraft;
 use App\Models\Task;
-use App\Models\UserAgent;
+use App\Models\PipelineRole;
 use App\Services\CostEstimatorService;
 use App\Services\GitHubConnectionService;
 use App\Services\GitHubContextReader;
 use App\Services\GitHubTemplateService;
-use Database\Seeders\UserAgentSeeder;
+use Database\Seeders\PipelineRoleSeeder;
 use Illuminate\Support\Facades\Auth;
 use Livewire\Attributes\On;
 use Livewire\Component;
@@ -124,7 +124,7 @@ class ProjectWizard extends Component
 
         if (isset($data['step4'])) {
             $this->models = $data['step4']['models'] ?? [];
-            $this->agents = $data['step4']['agents'] ?? [];
+            $this->agents = $data['step4']['roles'] ?? [];
         } else {
             $this->initDefaultAgents();
         }
@@ -142,7 +142,7 @@ class ProjectWizard extends Component
     public function render()
     {
         return view('livewire.project-wizard', [
-            'agentTypes' => AgentType::cases(),
+            'agentTypes' => PipelineRoleSlug::cases(),
             'taskTypes' => TaskType::cases(),
             'taskModes' => TaskMode::cases(),
             'modelOptions' => array_keys(config('maestro.model_prices', [])),
@@ -280,7 +280,7 @@ class ProjectWizard extends Component
     {
         $this->persistDraft(4, ['step4' => [
             'models' => $this->models,
-            'agents' => $this->agents,
+            'roles' => $this->agents,
         ]]);
     }
 
@@ -306,16 +306,16 @@ class ProjectWizard extends Component
             'status' => ProjectStatus::Active,
         ]);
 
-        foreach ($data['step4']['agents'] as $type => $config) {
-            $userAgent = UserAgent::query()
+        foreach ($data['step4']['roles'] as $type => $config) {
+            $pipelineRole = PipelineRole::query()
                 ->where('user_id', Auth::id())
                 ->where('slug', $type)
                 ->first();
 
-            ProjectAgent::create([
+            ProjectRole::create([
                 'project_id' => $project->id,
-                'user_agent_id' => $userAgent?->id,
-                'agent_type' => $type,
+                'pipeline_role_id' => $pipelineRole?->id,
+                'role' => $type,
                 'is_active' => $config['is_active'] ?? true,
                 'model' => $config['model'],
                 'system_prompt' => $config['system_prompt'],
@@ -372,18 +372,18 @@ class ProjectWizard extends Component
     {
         $user = Auth::user();
 
-        if ($user->agents()->count() === 0) {
-            UserAgentSeeder::seedForUser($user);
+        if ($user->pipelineRoles()->count() === 0) {
+            PipelineRoleSeeder::seedForUser($user);
         }
 
-        foreach ($user->agents()->orderBy('sort_order')->get() as $userAgent) {
-            $slug = $userAgent->slug;
-            $this->models[$slug] = $userAgent->model;
+        foreach ($user->pipelineRoles()->orderBy('sort_order')->get() as $pipelineRole) {
+            $slug = $pipelineRole->slug;
+            $this->models[$slug] = $pipelineRole->model;
             $this->agents[$slug] = [
                 'is_active' => true,
-                'model' => $userAgent->model,
-                'system_prompt' => $userAgent->system_prompt,
-                'sort_order' => $userAgent->sort_order,
+                'model' => $pipelineRole->model,
+                'system_prompt' => $pipelineRole->system_prompt,
+                'sort_order' => $pipelineRole->sort_order,
             ];
         }
     }

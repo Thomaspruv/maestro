@@ -1,7 +1,7 @@
 <?php
 
 use App\Models\User;
-use App\Models\UserAgent;
+use App\Models\PipelineRole;
 use Database\Seeders\AgentPromptSeeder;
 use Illuminate\Database\Migrations\Migration;
 
@@ -9,7 +9,7 @@ return new class extends Migration
 {
     public function up(): void
     {
-        UserAgent::query()
+        PipelineRole::query()
             ->where('slug', 'discovery')
             ->where('is_builtin', true)
             ->where('prompt_customized', false)

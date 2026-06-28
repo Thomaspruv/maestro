@@ -2,19 +2,19 @@
 
 namespace Tests\Feature;
 
-use App\Agents\AgentFactory;
-use App\Enums\AgentRunStatus;
+use App\Pipeline\RunnerFactory;
+use App\Enums\PipelineStepStatus;
 use App\Enums\GateStatus;
 use App\Enums\TaskMode;
 use App\Enums\TaskStatus;
 use App\Enums\TaskType;
-use App\Models\AgentRun;
+use App\Models\PipelineStep;
 use App\Models\Gate;
 use App\Models\Project;
-use App\Models\ProjectAgent;
+use App\Models\ProjectRole;
 use App\Models\Task;
 use App\Models\User;
-use App\Models\UserAgent;
+use App\Models\PipelineRole;
 use App\Services\GateReviewService;
 use App\Services\OrchestratorService;
 use Illuminate\Foundation\Testing\RefreshDatabase;
@@ -30,10 +30,10 @@ class OrchestratorServiceTest extends TestCase
         $user = User::factory()->create();
         $project = Project::factory()->create(['user_id' => $user->id]);
 
-        foreach ($user->agents as $userAgent) {
-            ProjectAgent::factory()->create([
+        foreach ($user->pipelineRoles as $pipelineRole) {
+            ProjectRole::factory()->create([
                 'project_id' => $project->id,
-                'agent_type' => $userAgent->slug,
+                'role' => $pipelineRole->slug,
                 'is_active' => true,
             ]);
         }
@@ -91,22 +91,22 @@ class OrchestratorServiceTest extends TestCase
     {
         $task = $this->makeTask(TaskType::Feature, TaskMode::FullAuto);
 
-        ProjectAgent::where('project_id', $task->project_id)
-            ->where('agent_type', 'ux')
+        ProjectRole::where('project_id', $task->project_id)
+            ->where('role', 'ux')
             ->update(['is_active' => false]);
 
         $orchestrator = app(OrchestratorService::class);
 
-        AgentRun::create([
+        PipelineStep::create([
             'task_id' => $task->id,
-            'agent_type' => 'pm',
-            'status' => AgentRunStatus::Completed,
+            'role' => 'pm',
+            'status' => PipelineStepStatus::Completed,
             'model' => 'claude-sonnet-4-6',
             'input' => [],
             'output' => 'spec done',
         ]);
 
-        $next = $orchestrator->resolveNextAgent($task->fresh());
+        $next = $orchestrator->resolveNextRole($task->fresh());
 
         $this->assertSame('tech_lead', $next);
     }
@@ -117,10 +117,10 @@ class OrchestratorServiceTest extends TestCase
 
         $task = $this->makeTask(TaskType::Feature, TaskMode::Manual);
 
-        AgentRun::create([
+        PipelineStep::create([
             'task_id' => $task->id,
-            'agent_type' => 'pm',
-            'status' => AgentRunStatus::Completed,
+            'role' => 'pm',
+            'status' => PipelineStepStatus::Completed,
             'model' => 'claude-sonnet-4-6',
             'input' => [],
             'output' => 'spec done',
@@ -128,7 +128,7 @@ class OrchestratorServiceTest extends TestCase
 
         $gate = Gate::factory()->create([
             'task_id' => $task->id,
-            'agent_run_id' => $task->agentRuns()->first()->id,
+            'pipeline_step_id' => $task->pipelineSteps()->first()->id,
             'status' => GateStatus::Pending,
         ]);
 
@@ -139,15 +139,15 @@ class OrchestratorServiceTest extends TestCase
             'task_id' => $task->id,
             'status' => GateStatus::Pending->value,
         ]);
-        $this->assertDatabaseHas('agent_runs', [
+        $this->assertDatabaseHas('pipeline_steps', [
             'task_id' => $task->id,
-            'agent_type' => 'ux',
-            'status' => AgentRunStatus::Pending->value,
+            'role' => 'ux',
+            'status' => PipelineStepStatus::Pending->value,
         ]);
-        $this->assertDatabaseHas('agent_runs', [
+        $this->assertDatabaseHas('pipeline_steps', [
             'task_id' => $task->id,
-            'agent_type' => 'tech_lead',
-            'status' => AgentRunStatus::Pending->value,
+            'role' => 'tech_lead',
+            'status' => PipelineStepStatus::Pending->value,
         ]);
     }
 
@@ -159,13 +159,13 @@ class OrchestratorServiceTest extends TestCase
 
         app(OrchestratorService::class)->advance($task->fresh());
 
-        $this->assertDatabaseHas('agent_runs', [
+        $this->assertDatabaseHas('pipeline_steps', [
             'task_id' => $task->id,
-            'agent_type' => 'pm',
-            'status' => AgentRunStatus::Pending->value,
+            'role' => 'pm',
+            'status' => PipelineStepStatus::Pending->value,
         ]);
 
-        $this->assertSame('pm', $task->fresh()->current_agent);
+        $this->assertSame('pm', $task->fresh()->current_role);
     }
 
     public function test_custom_agent_in_pipeline_resolves_without_enum_error(): void
@@ -178,27 +178,27 @@ class OrchestratorServiceTest extends TestCase
             ],
         ]);
 
-        UserAgent::factory()->create([
+        PipelineRole::factory()->create([
             'user_id' => $user->id,
             'slug' => 'legal_reviewer',
             'name' => 'Legal',
         ]);
 
-        ProjectAgent::factory()->create([
+        ProjectRole::factory()->create([
             'project_id' => $project->id,
-            'agent_type' => 'pm',
+            'role' => 'pm',
             'is_active' => true,
         ]);
 
-        ProjectAgent::factory()->create([
+        ProjectRole::factory()->create([
             'project_id' => $project->id,
-            'agent_type' => 'legal_reviewer',
+            'role' => 'legal_reviewer',
             'is_active' => true,
         ]);
 
-        ProjectAgent::factory()->create([
+        ProjectRole::factory()->create([
             'project_id' => $project->id,
-            'agent_type' => 'dev',
+            'role' => 'dev',
             'is_active' => true,
         ]);
 
@@ -209,21 +209,21 @@ class OrchestratorServiceTest extends TestCase
             'status' => TaskStatus::InProgress,
         ]);
 
-        AgentRun::create([
+        PipelineStep::create([
             'task_id' => $task->id,
-            'agent_type' => 'pm',
-            'status' => AgentRunStatus::Completed,
+            'role' => 'pm',
+            'status' => PipelineStepStatus::Completed,
             'model' => 'claude-sonnet-4-6',
             'input' => [],
             'output' => 'spec',
         ]);
 
         $orchestrator = app(OrchestratorService::class);
-        $next = $orchestrator->resolveNextAgent($task->fresh());
+        $next = $orchestrator->resolveNextRole($task->fresh());
 
         $this->assertSame('legal_reviewer', $next);
 
-        $agent = AgentFactory::make('legal_reviewer', $project);
+        $agent = RunnerFactory::make('legal_reviewer', $project);
         $this->assertNotEmpty($agent->systemPrompt());
     }
 }

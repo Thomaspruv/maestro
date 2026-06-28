@@ -99,7 +99,6 @@ return [
     'waits' => [
         'redis:default' => 60,
         'redis:agents' => 120,
-        'redis:dev-agent' => 300,
     ],
 
     /*
@@ -225,19 +224,6 @@ return [
             'timeout' => 300,
             'nice' => 0,
         ],
-        'supervisor-dev-agent' => [
-            'connection' => 'redis',
-            'queue' => ['dev-agent'],
-            'balance' => 'simple',
-            'autoScalingStrategy' => 'time',
-            'maxProcesses' => 1,
-            'maxTime' => 0,
-            'maxJobs' => 0,
-            'memory' => 512,
-            'tries' => 1,
-            'timeout' => 960,
-            'nice' => 0,
-        ],
     ],
 
     'environments' => [
@@ -252,9 +238,6 @@ return [
                 'balanceMaxShift' => 1,
                 'balanceCooldown' => 3,
             ],
-            'supervisor-dev-agent' => [
-                'maxProcesses' => 2,
-            ],
         ],
 
         'local' => [
@@ -263,9 +246,6 @@ return [
             ],
             'supervisor-agents' => [
                 'maxProcesses' => 2,
-            ],
-            'supervisor-dev-agent' => [
-                'maxProcesses' => 1,
             ],
         ],
     ],

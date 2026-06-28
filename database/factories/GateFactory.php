@@ -4,7 +4,7 @@ namespace Database\Factories;
 
 use App\Enums\GateStatus;
 use App\Enums\GateType;
-use App\Models\AgentRun;
+use App\Models\PipelineStep;
 use App\Models\Gate;
 use App\Models\Task;
 use Illuminate\Database\Eloquent\Factories\Factory;
@@ -38,8 +38,8 @@ class GateFactory extends Factory
                 $gate->task_id = $task->id;
             }
 
-            if (! $gate->agent_run_id) {
-                $gate->agent_run_id = AgentRun::factory()->create([
+            if (! $gate->pipeline_step_id) {
+                $gate->pipeline_step_id = PipelineStep::factory()->create([
                     'task_id' => $gate->task_id,
                 ])->id;
             }

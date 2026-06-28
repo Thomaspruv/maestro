@@ -24,14 +24,14 @@ class KanbanBoardTest extends TestCase
             'project_id' => $project->id,
             'title' => 'Tâche en attente Hermes',
             'status' => TaskStatus::WaitingHermes,
-            'current_agent' => 'hermes',
+            'current_role' => 'hermes',
         ]);
 
         Task::factory()->create([
             'project_id' => $project->id,
             'title' => 'Tâche agents en cours',
             'status' => TaskStatus::InProgress,
-            'current_agent' => 'pm',
+            'current_role' => 'pm',
         ]);
 
         Task::factory()->create([
@@ -57,7 +57,7 @@ class KanbanBoardTest extends TestCase
         $task = Task::factory()->create([
             'project_id' => $project->id,
             'status' => TaskStatus::InProgress,
-            'current_agent' => 'pm',
+            'current_role' => 'pm',
             'sort_order' => 0,
         ]);
 
@@ -84,7 +84,7 @@ class KanbanBoardTest extends TestCase
         $this->assertDatabaseHas('tasks', [
             'id' => $task->id,
             'status' => TaskStatus::WaitingHermes->value,
-            'current_agent' => 'hermes',
+            'current_role' => 'hermes',
         ]);
     }
 
@@ -96,7 +96,7 @@ class KanbanBoardTest extends TestCase
         $task = Task::factory()->create([
             'project_id' => $project->id,
             'status' => TaskStatus::WaitingHermes,
-            'current_agent' => 'hermes',
+            'current_role' => 'hermes',
         ]);
 
         Livewire::actingAs($user)
@@ -114,7 +114,7 @@ class KanbanBoardTest extends TestCase
         $this->assertDatabaseHas('tasks', [
             'id' => $task->id,
             'status' => TaskStatus::Backlog->value,
-            'current_agent' => null,
+            'current_role' => null,
         ]);
     }
 }

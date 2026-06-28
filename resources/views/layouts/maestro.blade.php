@@ -11,23 +11,37 @@
     @vite(['resources/css/app.css', 'resources/js/app.js'])
     @livewireStyles
 </head>
-<body class="bg-maestro-bg text-maestro-text min-h-screen">
-    <div class="desktop-only-message">
-        <div>
-            <div class="mb-3 text-4xl">⚒️</div>
-            <h1 class="mb-2 text-lg font-medium text-maestro-text">Maestro — Bureau uniquement</h1>
-            <p class="max-w-sm text-[12px] text-maestro-muted">Cette interface nécessite un écran d'au moins 1200px de large.</p>
-        </div>
-    </div>
+<body
+    class="bg-maestro-bg text-maestro-text min-h-screen"
+    x-data="{ mobileNavOpen: false }"
+    x-bind:class="{ 'overflow-hidden': mobileNavOpen }"
+    @keydown.escape.window="mobileNavOpen = false"
+>
+    <x-topbar :current-project="$currentProject ?? null" />
 
-    <x-topbar />
+    <div
+        x-show="mobileNavOpen"
+        x-transition:enter="transition-opacity ease-out duration-200"
+        x-transition:enter-start="opacity-0"
+        x-transition:enter-end="opacity-100"
+        x-transition:leave="transition-opacity ease-in duration-150"
+        x-transition:leave-start="opacity-100"
+        x-transition:leave-end="opacity-0"
+        class="maestro-drawer-backdrop"
+        @click="mobileNavOpen = false"
+        aria-hidden="true"
+    ></div>
 
-    <x-sidebar />
+    <x-sidebar
+        :user-projects="$userProjects ?? collect()"
+        :current-project="$currentProject ?? null"
+        x-bind:class="{ 'maestro-sidebar-open': mobileNavOpen }"
+    />
 
     <div class="maestro-content">
-        <header class="maestro-topbar -mx-5 -mt-5 mb-5">
+        <header class="maestro-topbar -mx-4 -mt-4 mb-5 lg:-mx-6 lg:-mt-6">
             <h1 class="text-[16px] font-medium text-maestro-text">@yield('title', $title ?? 'Maestro')</h1>
-            <div class="flex items-center gap-2">
+            <div class="flex flex-wrap items-center gap-2">
                 @hasSection('actions')
                     @yield('actions')
                 @elseif(isset($actions))

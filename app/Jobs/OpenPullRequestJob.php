@@ -2,7 +2,7 @@
 
 namespace App\Jobs;
 
-use App\Enums\AgentRunStatus;
+use App\Enums\PipelineStepStatus;
 use App\Models\Task;
 use App\Services\GitHubService;
 use App\Services\NotificationService;
@@ -17,7 +17,7 @@ class OpenPullRequestJob implements ShouldQueue
     public function __construct(
         public readonly Task $task,
     ) {
-        $this->onQueue('agents');
+        $this->onQueue('roles');
     }
 
     public function handle(GitHubService $github, NotificationService $notifications): void
@@ -36,9 +36,9 @@ class OpenPullRequestJob implements ShouldQueue
             return;
         }
 
-        $prExpertRun = $this->task->agentRuns()
-            ->where('agent_type', 'pr_expert')
-            ->where('status', AgentRunStatus::Completed)
+        $prExpertRun = $this->task->pipelineSteps()
+            ->where('role', 'pr_expert')
+            ->where('status', PipelineStepStatus::Completed)
             ->latest()
             ->first();
 

@@ -4,7 +4,7 @@
 
 @section('content')
     <div class="mb-4">
-        <div class="mb-3 flex items-center gap-3">
+        <div class="mb-3 flex flex-wrap items-center gap-2 sm:gap-3">
             <a href="{{ route('projects.show', $project) }}" class="text-xs text-text-muted hover:text-primary-light">← {{ $project->name }}</a>
             <x-maestro.badge kind="task_type" :value="$task->type" />
             <x-maestro.badge kind="task_status" :value="$task->status" />
@@ -17,12 +17,14 @@
         @endif
     </div>
 
-    <div class="grid h-[calc(100vh-11rem)] grid-cols-[minmax(240px,280px)_1fr] gap-4">
-        <div class="h-full overflow-y-auto">
-            @livewire('task-pipeline', ['task' => $task])
-        </div>
-        <div class="flex h-full min-h-0 flex-col">
-            @livewire('agent-output-viewer', ['task' => $task])
-        </div>
+    <div class="min-h-[50vh] lg:h-[calc(100vh-11rem)]">
+        <x-maestro.task-detail-panels class="h-full">
+            <x-slot:pipeline>
+                @livewire('task-pipeline', ['task' => $task])
+            </x-slot:pipeline>
+            <x-slot:output>
+                @livewire('step-output-viewer', ['task' => $task])
+            </x-slot:output>
+        </x-maestro.task-detail-panels>
     </div>
 @endsection

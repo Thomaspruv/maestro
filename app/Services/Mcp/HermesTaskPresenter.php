@@ -2,15 +2,15 @@
 
 namespace App\Services\Mcp;
 
-use App\Enums\AgentRunStatus;
+use App\Enums\PipelineStepStatus;
 use App\Enums\TaskStatus;
 use App\Models\Task;
-use App\Services\AgentOutputCondenser;
+use App\Services\PipelineOutputCondenser;
 
 class HermesTaskPresenter
 {
     public function __construct(
-        private readonly AgentOutputCondenser $condenser,
+        private readonly PipelineOutputCondenser $condenser,
     ) {}
 
     public function isAwaitingHermes(Task $task): bool
@@ -27,7 +27,7 @@ class HermesTaskPresenter
      */
     public function listItem(Task $task): array
     {
-        $task->loadMissing(['project:id,name,uuid,github_repo,github_branch', 'agentRuns']);
+        $task->loadMissing(['project:id,name,uuid,github_repo,github_branch', 'pipelineSteps']);
 
         return [
             'task_id' => $task->id,
@@ -44,7 +44,7 @@ class HermesTaskPresenter
                 'github_branch' => $task->project->github_branch,
             ],
             'hermes_action' => 'implement_dev',
-            'planning_agents_completed' => $this->completedPlanningAgents($task),
+            'planning_roles_completed' => $this->completedPlanningRoles($task),
             'instruction' => $this->instruction(),
         ];
     }
@@ -54,11 +54,11 @@ class HermesTaskPresenter
      */
     public function detailBlock(Task $task): array
     {
-        $task->loadMissing(['project:id,name,uuid,github_repo,github_branch', 'agentRuns']);
+        $task->loadMissing(['project:id,name,uuid,github_repo,github_branch', 'pipelineSteps']);
 
         $shouldProcess = $this->isAwaitingHermes($task)
             || ($task->status === TaskStatus::InProgress
-                && $task->current_agent === 'hermes'
+                && $task->current_role === 'hermes'
                 && ! $this->hasActiveDevRun($task));
 
         return [
@@ -72,28 +72,28 @@ class HermesTaskPresenter
                 'repo' => $task->project->github_repo,
                 'branch' => $task->github_branch ?? $task->project->github_branch,
             ],
-            'planning_agents_completed' => $this->completedPlanningAgents($task),
+            'planning_roles_completed' => $this->completedPlanningRoles($task),
             'specs_preview' => $this->specsPreview($task),
         ];
     }
 
     public function instruction(): string
     {
-        return 'Implémenter le code selon les specs des agents de planning (PM, UX, Tech Lead). '
-            .'Appeler claim_hermes_task avant de commencer, puis add_agent_output avec agent_type=dev une fois terminé.';
+        return 'Implémenter le code selon les specs de planning (PM, UX, Tech Lead). '
+            .'Appeler claim_hermes_task avant de commencer, puis record_step_output avec role=dev une fois terminé.';
     }
 
     /**
      * @return array<int, string>
      */
-    public function completedPlanningAgents(Task $task): array
+    public function completedPlanningRoles(Task $task): array
     {
         $planningAgents = ['pm', 'ux', 'tech_lead', 'security'];
 
-        return $task->agentRuns
-            ->whereIn('agent_type', $planningAgents)
-            ->whereIn('status', [AgentRunStatus::Completed, AgentRunStatus::Skipped])
-            ->pluck('agent_type')
+        return $task->pipelineSteps
+            ->whereIn('role', $planningAgents)
+            ->whereIn('status', [PipelineStepStatus::Completed, PipelineStepStatus::Skipped])
+            ->pluck('role')
             ->unique()
             ->values()
             ->all();
@@ -107,9 +107,9 @@ class HermesTaskPresenter
         $preview = [];
 
         foreach (['tech_lead', 'ux', 'pm'] as $agentType) {
-            $run = $task->agentRuns
-                ->where('agent_type', $agentType)
-                ->where('status', AgentRunStatus::Completed)
+            $run = $task->pipelineSteps
+                ->where('role', $agentType)
+                ->where('status', PipelineStepStatus::Completed)
                 ->sortByDesc('id')
                 ->first();
 
@@ -125,23 +125,23 @@ class HermesTaskPresenter
 
     private function hasActiveDevRun(Task $task): bool
     {
-        if (! $task->relationLoaded('agentRuns')) {
-            return $task->agentRuns()
-                ->where('agent_type', 'dev')
+        if (! $task->relationLoaded('pipelineSteps')) {
+            return $task->pipelineSteps()
+                ->where('role', 'dev')
                 ->whereIn('status', [
-                    AgentRunStatus::Completed,
-                    AgentRunStatus::Running,
-                    AgentRunStatus::Pending,
+                    PipelineStepStatus::Completed,
+                    PipelineStepStatus::Running,
+                    PipelineStepStatus::Pending,
                 ])
                 ->exists();
         }
 
-        return $task->agentRuns
-            ->where('agent_type', 'dev')
+        return $task->pipelineSteps
+            ->where('role', 'dev')
             ->whereIn('status', [
-                AgentRunStatus::Completed,
-                AgentRunStatus::Running,
-                AgentRunStatus::Pending,
+                PipelineStepStatus::Completed,
+                PipelineStepStatus::Running,
+                PipelineStepStatus::Pending,
             ])
             ->isNotEmpty();
     }

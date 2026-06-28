@@ -2,12 +2,12 @@
 
 namespace Tests\Feature\Livewire;
 
-use App\Enums\AgentRunStatus;
+use App\Enums\PipelineStepStatus;
 use App\Enums\GateStatus;
 use App\Enums\GateType;
 use App\Enums\TaskStatus;
 use App\Livewire\PipelineCockpit;
-use App\Models\AgentRun;
+use App\Models\PipelineStep;
 use App\Models\Gate;
 use App\Models\Project;
 use App\Models\Task;
@@ -48,9 +48,9 @@ class PipelineCockpitTest extends TestCase
         $user = User::factory()->create();
         $project = Project::factory()->create(['user_id' => $user->id]);
         $task = Task::factory()->create(['project_id' => $project->id]);
-        $task->agentRuns()->create([
-            'agent_type' => 'pm',
-            'status' => AgentRunStatus::Completed,
+        $task->pipelineSteps()->create([
+            'role' => 'pm',
+            'status' => PipelineStepStatus::Completed,
             'cost' => 0.1234,
             'input' => [],
             'output' => 'Some output',
@@ -72,15 +72,15 @@ class PipelineCockpitTest extends TestCase
             'project_id' => $project->id,
             'status' => TaskStatus::InProgress,
         ]);
-        $run = AgentRun::factory()->create([
+        $run = PipelineStep::factory()->create([
             'task_id' => $task->id,
-            'agent_type' => 'pm',
-            'status' => AgentRunStatus::WaitingGate,
+            'role' => 'pm',
+            'status' => PipelineStepStatus::WaitingGate,
             'output' => 'Output',
         ]);
         $gate = Gate::create([
             'task_id' => $task->id,
-            'agent_run_id' => $run->id,
+            'pipeline_step_id' => $run->id,
             'gate_type' => GateType::SpecsReview,
             'status' => GateStatus::Pending,
         ]);
@@ -100,15 +100,15 @@ class PipelineCockpitTest extends TestCase
             'project_id' => $project->id,
             'status' => TaskStatus::InProgress,
         ]);
-        $run = AgentRun::factory()->create([
+        $run = PipelineStep::factory()->create([
             'task_id' => $task->id,
-            'agent_type' => 'pm',
-            'status' => AgentRunStatus::WaitingGate,
+            'role' => 'pm',
+            'status' => PipelineStepStatus::WaitingGate,
             'output' => 'Output',
         ]);
         $gate = Gate::create([
             'task_id' => $task->id,
-            'agent_run_id' => $run->id,
+            'pipeline_step_id' => $run->id,
             'gate_type' => GateType::SpecsReview,
             'status' => GateStatus::Pending,
         ]);
@@ -130,14 +130,14 @@ class PipelineCockpitTest extends TestCase
             'project_id' => $project->id,
             'status' => TaskStatus::InProgress,
         ]);
-        $run = AgentRun::factory()->create([
+        $run = PipelineStep::factory()->create([
             'task_id' => $task->id,
-            'agent_type' => 'pm',
-            'status' => AgentRunStatus::Completed,
+            'role' => 'pm',
+            'status' => PipelineStepStatus::Completed,
         ]);
         $gate = Gate::create([
             'task_id' => $task->id,
-            'agent_run_id' => $run->id,
+            'pipeline_step_id' => $run->id,
             'gate_type' => GateType::SpecsReview,
             'status' => GateStatus::Approved,
         ]);

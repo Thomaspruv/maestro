@@ -13,7 +13,7 @@ class CostLog extends Model
         'user_id',
         'project_id',
         'task_id',
-        'agent_run_id',
+        'pipeline_step_id',
         'month',
         'input_tokens',
         'output_tokens',
@@ -47,11 +47,11 @@ class CostLog extends Model
     }
 
     /**
-     * @return BelongsTo<AgentRun, $this>
+     * @return BelongsTo<PipelineStep, $this>
      */
-    public function agentRun(): BelongsTo
+    public function pipelineStep(): BelongsTo
     {
-        return $this->belongsTo(AgentRun::class);
+        return $this->belongsTo(PipelineStep::class);
     }
 
     protected function casts(): array

@@ -26,8 +26,8 @@ class PipelineCockpit extends Component
         $this->refreshSnapshot();
     }
 
-    #[On('echo:task.{task.id},AgentRunUpdated')]
-    public function onAgentRunUpdated(): void
+    #[On('echo:task.{task.id},PipelineStepUpdated')]
+    public function onPipelineStepUpdated(): void
     {
         $this->refreshSnapshot();
     }
@@ -44,8 +44,8 @@ class PipelineCockpit extends Component
         $this->refreshSnapshot();
     }
 
-    #[On('echo:task.{task.id},AgentCostRecorded')]
-    public function onAgentCostRecorded(): void
+    #[On('echo:task.{task.id},PipelineStepCostRecorded')]
+    public function onPipelineStepCostRecorded(): void
     {
         $this->refreshSnapshot();
     }

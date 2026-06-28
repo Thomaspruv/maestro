@@ -60,7 +60,7 @@ class LogCostTool implements McpTool
             'user_id' => $user->id,
             'project_id' => $project->id,
             'task_id' => $task?->id,
-            'agent_run_id' => null,
+            'pipeline_step_id' => null,
             'month' => now()->startOfMonth(),
             'input_tokens' => (int) $arguments['input_tokens'],
             'output_tokens' => (int) $arguments['output_tokens'],

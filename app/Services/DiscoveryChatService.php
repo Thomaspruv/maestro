@@ -9,7 +9,7 @@ class DiscoveryChatService
 {
     public function __construct(
         private readonly AnthropicClient $anthropic,
-        private readonly AgentRunnerService $runner,
+        private readonly PipelineStepRunnerService $runner,
         private readonly GitHubContextReader $githubReader,
         private readonly UrlCrawlerService $crawler,
     ) {}
@@ -40,7 +40,7 @@ class DiscoveryChatService
         $enrichedMessage = $fullDiscovery
             ? $this->enrichWithDiscoverySources($this->enrichMessageWithUrls($message, fastFetch: true))
             : $this->enrichMessageWithUrls($message);
-        $model = AgentCapabilities::resolveModel('discovery', $project);
+        $model = PipelineRoleCapabilities::resolveModel('discovery', $project);
         $systemBlocks = $this->buildSystemBlocks($project, $fullDiscovery);
 
         $maxHistory = (int) config('maestro.discovery_max_history', 10);
@@ -182,7 +182,7 @@ class DiscoveryChatService
 
         $blocks[] = [
             'type' => 'text',
-            'text' => AgentCapabilities::resolveSystemPrompt('discovery', $project),
+            'text' => PipelineRoleCapabilities::resolveSystemPrompt('discovery', $project),
         ];
 
         return $blocks;

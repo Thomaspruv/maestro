@@ -63,7 +63,7 @@ class KanbanBoard extends Component
 
         $task->update([
             'status' => TaskStatus::InProgress,
-            'current_agent' => null,
+            'current_role' => null,
         ]);
 
         $orchestrator->advance($task->fresh());
@@ -120,7 +120,7 @@ class KanbanBoard extends Component
                 $task->update([
                     'status' => $newStatus,
                     'sort_order' => (int) ($item['sort_order'] ?? 0),
-                    'current_agent' => $this->resolveCurrentAgentForColumn($newStatus, $task),
+                    'current_role' => $this->resolveCurrentAgentForColumn($newStatus, $task),
                 ]);
             }
         }
@@ -132,17 +132,17 @@ class KanbanBoard extends Component
             return 'hermes';
         }
 
-        if ($task->current_agent === 'hermes') {
+        if ($task->current_role === 'hermes') {
             return null;
         }
 
-        return $task->current_agent;
+        return $task->current_role;
     }
 
     public function render()
     {
         $query = $this->project->tasks()
-            ->with(['agentRuns', 'gates'])
+            ->with(['pipelineSteps', 'gates'])
             ->orderBy('sort_order');
 
         if ($this->search) {
@@ -176,7 +176,7 @@ class KanbanBoard extends Component
         $openTask = $this->openTaskId
             ? Task::query()
                 ->where('project_id', $this->project->id)
-                ->with(['agentRuns', 'gates.agentRun', 'project'])
+                ->with(['pipelineSteps', 'gates.pipelineStep', 'project'])
                 ->find($this->openTaskId)
             : null;
 

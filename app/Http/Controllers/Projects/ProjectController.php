@@ -29,7 +29,7 @@ class ProjectController extends Controller
         $this->authorize('view', $project);
 
         $tasks = $project->tasks()
-            ->with(['agentRuns', 'gates'])
+            ->with(['pipelineSteps', 'gates'])
             ->orderBy('sort_order')
             ->get()
             ->groupBy('status');

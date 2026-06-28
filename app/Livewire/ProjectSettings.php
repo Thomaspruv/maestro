@@ -6,9 +6,9 @@ use App\Enums\TaskMode;
 use App\Enums\TaskType;
 use App\Livewire\Concerns\InteractsWithGitHubRepositories;
 use App\Models\Project;
-use App\Models\ProjectAgent;
+use App\Models\ProjectRole;
 use App\Services\GitHubConnectionService;
-use App\Services\ProjectAgentSyncService;
+use App\Services\ProjectRoleSyncService;
 use Illuminate\Validation\Rule;
 use Livewire\Attributes\On;
 use Livewire\Component;
@@ -79,9 +79,9 @@ class ProjectSettings extends Component
         $this->gates = $project->gate_config ?? config('maestro.default_gate_config', []);
         $this->modes = $project->default_modes ?? config('maestro.default_modes', []);
 
-        $this->agents = $project->agents->map(fn (ProjectAgent $a) => [
+        $this->agents = $project->roles->map(fn (ProjectRole $a) => [
             'id' => $a->id,
-            'agent_type' => $a->agent_type,
+            'role' => $a->role,
             'is_active' => $a->is_active,
             'model' => $a->model,
             'system_prompt' => $a->system_prompt,
@@ -158,23 +158,23 @@ class ProjectSettings extends Component
     public function saveAgents(): void
     {
         $models = array_keys(config('maestro.model_prices', []));
-        $projectSlugs = $this->project->agents()->pluck('agent_type')->all();
+        $projectSlugs = $this->project->roles()->pluck('role')->all();
 
         $this->validate([
-            'agents.*.agent_type' => ['required', 'string', Rule::in($projectSlugs)],
-            'agents.*.is_active' => ['boolean'],
-            'agents.*.model' => ['required', 'string', Rule::in($models)],
-            'agents.*.system_prompt' => ['required', 'string', 'max:50000'],
-            'agents.*.sort_order' => ['required', 'integer', 'min:0'],
+            'roles.*.role' => ['required', 'string', Rule::in($projectSlugs)],
+            'roles.*.is_active' => ['boolean'],
+            'roles.*.model' => ['required', 'string', Rule::in($models)],
+            'roles.*.system_prompt' => ['required', 'string', 'max:50000'],
+            'roles.*.sort_order' => ['required', 'integer', 'min:0'],
         ]);
 
         $modelConfig = $this->project->model_config ?? [];
 
         foreach ($this->agents as $agentData) {
-            ProjectAgent::updateOrCreate(
+            ProjectRole::updateOrCreate(
                 [
                     'project_id' => $this->project->id,
-                    'agent_type' => $agentData['agent_type'],
+                    'role' => $agentData['role'],
                 ],
                 [
                     'is_active' => $agentData['is_active'] ?? true,
@@ -184,7 +184,7 @@ class ProjectSettings extends Component
                 ],
             );
 
-            $modelConfig[$agentData['agent_type']] = $agentData['model'];
+            $modelConfig[$agentData['role']] = $agentData['model'];
         }
 
         unset($modelConfig['dev_runner']);
@@ -220,7 +220,7 @@ class ProjectSettings extends Component
 
     public function render()
     {
-        $labelService = app(ProjectAgentSyncService::class);
+        $labelService = app(ProjectRoleSyncService::class);
 
         return view('livewire.project-settings', [
             'taskTypes' => TaskType::cases(),

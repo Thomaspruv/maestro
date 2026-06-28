@@ -2,7 +2,7 @@
 
 namespace App\Services;
 
-use App\Enums\AgentRunStatus;
+use App\Enums\PipelineStepStatus;
 use App\Enums\GateStatus;
 use App\Models\Gate;
 use App\Models\Task;
@@ -22,12 +22,12 @@ class PipelineCockpitService
      */
     public function getSnapshot(Task $task): array
     {
-        $task->loadMissing(['project.agents', 'agentRuns', 'gates']);
+        $task->loadMissing(['project.roles', 'pipelineSteps', 'gates']);
 
         $pipeline = $this->orchestrator->getPipelineForTask($task);
-        $completedAgents = $this->getCompletedAgentTypes($task);
-        $runsByAgent = $task->agentRuns->keyBy('agent_type');
-        $gatesByAgentRun = $task->gates->keyBy('agent_run_id');
+        $completedAgents = $this->getCompletedPipelineRoleSlugs($task);
+        $runsByAgent = $task->pipelineSteps->keyBy('role');
+        $gatesByPipelineStep = $task->gates->keyBy('pipeline_step_id');
 
         $steps = [];
         $totalCost = 0;
@@ -45,16 +45,16 @@ class PipelineCockpitService
             }
 
             // Check if this agent is running
-            if ($run && $run->status === AgentRunStatus::Running) {
+            if ($run && $run->status === PipelineStepStatus::Running) {
                 $isActive = true;
             }
 
             // Gate step (if agent is completed and gate exists)
             if ($run && in_array($run->status, [
-                AgentRunStatus::Completed,
-                AgentRunStatus::WaitingGate,
+                PipelineStepStatus::Completed,
+                PipelineStepStatus::WaitingGate,
             ])) {
-                $gate = $gatesByAgentRun->get($run->id);
+                $gate = $gatesByPipelineStep->get($run->id);
 
                 if ($gate) {
                     $gateStep = $this->buildGateStep($gate);
@@ -83,7 +83,7 @@ class PipelineCockpitService
         if (! $run) {
             return [
                 'type' => 'agent',
-                'agent_type' => $agentType,
+                'role' => $agentType,
                 'status' => 'pending',
                 'cost' => null,
                 'run_id' => null,
@@ -99,7 +99,7 @@ class PipelineCockpitService
 
         return [
             'type' => 'agent',
-            'agent_type' => $agentType,
+            'role' => $agentType,
             'status' => $status,
             'cost' => $run->cost ? (float) $run->cost : null,
             'run_id' => $run->id,
@@ -131,23 +131,23 @@ class PipelineCockpitService
     /**
      * @return array<int, string>
      */
-    private function getCompletedAgentTypes(Task $task): array
+    private function getCompletedPipelineRoleSlugs(Task $task): array
     {
-        return $task->agentRuns()
-            ->whereIn('status', [AgentRunStatus::Completed, AgentRunStatus::Skipped])
-            ->pluck('agent_type')
+        return $task->pipelineSteps()
+            ->whereIn('status', [PipelineStepStatus::Completed, PipelineStepStatus::Skipped])
+            ->pluck('role')
             ->all();
     }
 
-    private function mapAgentStatus(AgentRunStatus $status): string
+    private function mapAgentStatus(PipelineStepStatus $status): string
     {
         return match ($status) {
-            AgentRunStatus::Pending => 'pending',
-            AgentRunStatus::Running => 'running',
-            AgentRunStatus::Completed => 'completed',
-            AgentRunStatus::Failed => 'blocked',
-            AgentRunStatus::WaitingGate => 'waiting_gate',
-            AgentRunStatus::Skipped => 'skipped',
+            PipelineStepStatus::Pending => 'pending',
+            PipelineStepStatus::Running => 'running',
+            PipelineStepStatus::Completed => 'completed',
+            PipelineStepStatus::Failed => 'blocked',
+            PipelineStepStatus::WaitingGate => 'waiting_gate',
+            PipelineStepStatus::Skipped => 'skipped',
         };
     }
 }

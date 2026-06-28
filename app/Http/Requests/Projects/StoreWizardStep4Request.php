@@ -2,7 +2,7 @@
 
 namespace App\Http\Requests\Projects;
 
-use Database\Seeders\UserAgentSeeder;
+use Database\Seeders\PipelineRoleSeeder;
 use Illuminate\Foundation\Http\FormRequest;
 use Illuminate\Validation\Rule;
 
@@ -20,17 +20,17 @@ class StoreWizardStep4Request extends FormRequest
     {
         $user = $this->user();
 
-        if ($user->agents()->count() === 0) {
-            UserAgentSeeder::seedForUser($user);
+        if ($user->pipelineRoles()->count() === 0) {
+            PipelineRoleSeeder::seedForUser($user);
         }
 
-        $agentSlugs = $user->agents()->pluck('slug')->all();
+        $agentSlugs = $user->pipelineRoles()->pluck('slug')->all();
         $models = array_keys(config('maestro.model_prices', []));
 
         $rules = [
             'models' => ['required', 'array'],
             'models.*' => ['required', 'string', Rule::in($models)],
-            'agents' => ['required', 'array'],
+            'roles' => ['required', 'array'],
         ];
 
         foreach ($agentSlugs as $slug) {

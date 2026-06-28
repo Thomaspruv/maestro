@@ -2,7 +2,7 @@
 
 namespace App\Services;
 
-use App\Models\AgentRun;
+use App\Models\PipelineStep;
 use App\Models\Gate;
 use App\Models\Task;
 use App\Models\User;
@@ -24,18 +24,18 @@ class NotificationService
         ]);
     }
 
-    public function notifyFailure(Task $task, AgentRun $run): void
+    public function notifyFailure(Task $task, PipelineStep $run): void
     {
         Log::error('Échec agent', [
             'task_id' => $task->id,
-            'agent_run_id' => $run->id,
-            'agent_type' => $run->agent_type,
+            'pipeline_step_id' => $run->id,
+            'role' => $run->role,
             'error' => $run->error_message,
         ]);
 
         $this->broadcastIfEnabled('agent.failed', [
             'task_id' => $task->id,
-            'agent_run_id' => $run->id,
+            'pipeline_step_id' => $run->id,
         ]);
     }
 

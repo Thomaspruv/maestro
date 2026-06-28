@@ -1,5 +1,5 @@
 <div
-    class="flex h-[calc(100vh-12rem)] flex-col"
+    class="flex min-h-[60vh] flex-col lg:h-[calc(100vh-12rem)]"
     x-data="{
         scrollToBottom() {
             const el = document.getElementById('discovery-messages');

@@ -79,8 +79,8 @@ Chaque tool est une classe dans `app/Services/Mcp/Tools/` avec une méthode `exe
 | `get_task` | `task_id` | Détail d'une tâche + outputs agents précédents (condensés) |
 | `create_task` | `project_id`, `title`, `description`, `type`, `priority`, `module?` | Crée une tâche dans Maestro |
 | `update_task_status` | `task_id`, `status` | Met à jour le statut d'une tâche |
-| `add_agent_output` | `task_id`, `agent_type`, `output`, `model`, `input_tokens?`, `output_tokens?`, `cost?` | Enregistre l'output d'un agent Hermes (crée un `AgentRun`) |
-| `request_gate` | `task_id`, `agent_run_id`, `gate_type` | Crée une gate d'approbation pour validation humaine |
+| `record_step_output` | `task_id`, `role`, `output`, `model`, `input_tokens?`, `output_tokens?`, `cost?` | Enregistre l'output d'un agent Hermes (crée un `PipelineStep`) |
+| `request_gate` | `task_id`, `pipeline_step_id`, `gate_type` | Crée une gate d'approbation pour validation humaine |
 | `log_cost` | `project_id`, `task_id?`, `model`, `input_tokens`, `output_tokens`, `cost` | Enregistre un coût dans `cost_logs` |
 
 **`app/Services/Mcp/McpToolRegistry.php`** — registre central, instancie et route vers le bon tool.
@@ -102,7 +102,7 @@ Route::post('/mcp', McpController::class)
 - `tools/list` retourne tous les tools
 - Auth invalide → 401
 - `create_task` crée bien la tâche en base
-- `add_agent_output` crée un `AgentRun` et met à jour le coût
+- `record_step_output` crée un `PipelineStep` et met à jour le coût
 - `request_gate` crée la gate et broadcast l'événement
 
 ---
@@ -113,7 +113,7 @@ Le Dev agent (clone repo, exécute du code localement, pousse la branche) est re
 
 ### Fichiers à supprimer
 
-- `app/Services/DevAgentRunner.php`
+- `app/Services/DevPipelineStepner.php`
 - `app/Services/DevRunnerApi.php`
 - `app/Services/CursorCloudRunner.php`
 - `app/Services/CursorCloudClient.php`
@@ -126,12 +126,12 @@ Le Dev agent (clone repo, exécute du code localement, pousse la branche) est re
 
 ### Fichiers à modifier
 
-**`app/Services/AgentCapabilities.php`**
+**`app/Services/PipelineRoleCapabilities.php`**
 - Retirer `isDev()`, `resolveDevRunner()`
 - Garder : `resolveModel()`, `resolveSystemPrompt()`, `queue()`, `postAction()`
 
-**`app/Jobs/RunAgentJob.php`**
-- Retirer la branche `isDev` → toujours router vers `AgentRunnerService`
+**`app/Jobs/RunPipelineStepJob.php`**
+- Retirer la branche `isDev` → toujours router vers `PipelineStepRunnerService`
 
 **`config/maestro.php`**
 - Retirer les clés `dev_runner`, `cursor_*`, `dev_api_*`, `dev_claude_*`, `repos_path`
@@ -233,7 +233,7 @@ MAESTRO_DISCOVERY_MAX_HISTORY=10
 - [ ] 1.8 Tool `get_task`
 - [ ] 1.9 Tool `create_task`
 - [ ] 1.10 Tool `update_task_status`
-- [ ] 1.11 Tool `add_agent_output`
+- [ ] 1.11 Tool `record_step_output`
 - [ ] 1.12 Tool `request_gate`
 - [ ] 1.13 Tool `log_cost`
 - [ ] 1.14 `McpToolRegistry`
@@ -242,8 +242,8 @@ MAESTRO_DISCOVERY_MAX_HISTORY=10
 
 ### Chantier 2 — Suppression Dev agent local
 - [ ] 2.1 Supprimer les fichiers listés
-- [ ] 2.2 Modifier `AgentCapabilities`
-- [ ] 2.3 Modifier `RunAgentJob`
+- [ ] 2.2 Modifier `PipelineRoleCapabilities`
+- [ ] 2.3 Modifier `RunPipelineStepJob`
 - [ ] 2.4 Nettoyer `config/maestro.php` et `.env.example`
 - [ ] 2.5 Retirer `dev` du pipeline par défaut
 

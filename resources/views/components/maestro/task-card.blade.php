@@ -6,8 +6,8 @@
     use App\Support\PipelineActivity;
 
     $project = $project ?? $task->project;
-    $agentLabels = config('maestro.agent_labels', []);
-    $currentAgent = PipelineActivity::currentAgentType($task);
+    $agentLabels = config('maestro.role_labels', []);
+    $currentAgent = PipelineActivity::currentPipelineRoleSlug($task);
     $runningRun = PipelineActivity::runningRun($task);
     $pendingRun = PipelineActivity::pendingRun($task);
     $pendingGate = $task->relationLoaded('gates')
@@ -61,11 +61,11 @@
         </div>
     @endif
 
-    @if(isset($task->agentRuns) && $task->agentRuns->isNotEmpty())
+    @if(isset($task->pipelineSteps) && $task->pipelineSteps->isNotEmpty())
         <div class="flex flex-wrap gap-1">
-            @foreach($task->agentRuns->sortBy('id') as $run)
+            @foreach($task->pipelineSteps->sortBy('id') as $run)
                 @php
-                    $label = config("maestro.agent_labels.{$run->agent_type}.emoji", '🤖');
+                    $label = config("maestro.role_labels.{$run->role}.emoji", '🤖');
                     $pillStatus = match ($run->status->value) {
                         'pending', 'running' => 'running',
                         'completed' => 'completed',

@@ -6,7 +6,7 @@ use App\Enums\ProjectStatus;
 use App\Livewire\GitHubConnect;
 use App\Models\Project;
 use App\Support\ProtectDevDatabase;
-use Database\Seeders\UserAgentSeeder;
+use Database\Seeders\PipelineRoleSeeder;
 use Illuminate\Auth\Events\Registered;
 use Illuminate\Console\Events\CommandStarting;
 use Illuminate\Support\Facades\Auth;
@@ -40,10 +40,10 @@ class AppServiceProvider extends ServiceProvider
         });
 
         Event::listen(Registered::class, function (Registered $event): void {
-            UserAgentSeeder::seedForUser($event->user);
+            PipelineRoleSeeder::seedForUser($event->user);
         });
 
-        View::composer('layouts.maestro', function ($view): void {
+        View::composer(['layouts.maestro', 'components.sidebar', 'components.topbar'], function ($view): void {
             $project = request()->route('project');
 
             if ($project instanceof Project) {

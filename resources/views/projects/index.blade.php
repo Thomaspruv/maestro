@@ -17,7 +17,7 @@
             <x-maestro.button tag="a" href="{{ route('projects.create') }}">Créer un projet</x-maestro.button>
         </x-maestro.empty-state>
     @else
-        <div class="grid grid-cols-3 gap-4">
+        <div class="grid grid-cols-1 gap-4 sm:grid-cols-2 xl:grid-cols-3">
             @foreach($projects as $project)
                 <a href="{{ route('projects.show', $project) }}" class="maestro-card block p-4 transition-colors hover:border-primary/40">
                     <h2 class="mb-1 text-sm font-semibold text-text-primary">{{ $project->name }}</h2>

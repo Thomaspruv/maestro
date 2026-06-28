@@ -199,7 +199,7 @@ TEXT;
         $user = User::factory()->create();
 
         $this->assertTrue(
-            $user->agents()->where('slug', 'discovery')->exists()
+            $user->pipelineRoles()->where('slug', 'discovery')->exists()
         );
     }
 }

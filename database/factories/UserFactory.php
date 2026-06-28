@@ -3,7 +3,7 @@
 namespace Database\Factories;
 
 use App\Models\User;
-use Database\Seeders\UserAgentSeeder;
+use Database\Seeders\PipelineRoleSeeder;
 use Illuminate\Database\Eloquent\Factories\Factory;
 use Illuminate\Support\Facades\Hash;
 use Illuminate\Support\Str;
@@ -48,7 +48,7 @@ class UserFactory extends Factory
     public function configure(): static
     {
         return $this->afterCreating(function (User $user): void {
-            UserAgentSeeder::seedForUser($user);
+            PipelineRoleSeeder::seedForUser($user);
         });
     }
 }

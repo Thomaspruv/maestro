@@ -42,7 +42,7 @@ class CostEstimatorService
         }
 
         return [
-            'agents' => $estimates,
+            'roles' => $estimates,
             'total_low' => round($total * 0.8, 4),
             'total_high' => round($total * 1.5, 4),
             'total_mid' => round($total, 4),
@@ -76,6 +76,6 @@ class CostEstimatorService
 
     private function resolveModel(Task $task, string $agent): string
     {
-        return AgentCapabilities::resolveModel($agent, $task->project);
+        return PipelineRoleCapabilities::resolveModel($agent, $task->project);
     }
 }

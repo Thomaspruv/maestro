@@ -2,7 +2,7 @@
 
 namespace Tests\Unit\Services;
 
-use App\Enums\AgentRunStatus;
+use App\Enums\PipelineStepStatus;
 use App\Enums\GateStatus;
 use App\Enums\GateType;
 use App\Models\Gate;
@@ -38,9 +38,9 @@ class PipelineCockpitServiceTest extends TestCase
         $user = User::factory()->create();
         $project = Project::factory()->create(['user_id' => $user->id]);
         $task = Task::factory()->create(['project_id' => $project->id]);
-        $task->agentRuns()->create([
-            'agent_type' => 'pm',
-            'status' => AgentRunStatus::Completed,
+        $task->pipelineSteps()->create([
+            'role' => 'pm',
+            'status' => PipelineStepStatus::Completed,
             'cost' => 0.1234,
             'input' => [],
             'output' => 'Some output',
@@ -50,7 +50,7 @@ class PipelineCockpitServiceTest extends TestCase
         $service = new PipelineCockpitService(app(OrchestratorService::class));
         $snapshot = $service->getSnapshot($task);
 
-        $pmStep = collect($snapshot['steps'])->first(fn ($s) => $s['agent_type'] === 'pm');
+        $pmStep = collect($snapshot['steps'])->first(fn ($s) => $s['role'] === 'pm');
         $this->assertNotNull($pmStep);
         $this->assertEquals('agent', $pmStep['type']);
         $this->assertEquals('completed', $pmStep['status']);
@@ -63,9 +63,9 @@ class PipelineCockpitServiceTest extends TestCase
         $user = User::factory()->create();
         $project = Project::factory()->create(['user_id' => $user->id]);
         $task = Task::factory()->create(['project_id' => $project->id]);
-        $run = $task->agentRuns()->create([
-            'agent_type' => 'pm',
-            'status' => AgentRunStatus::WaitingGate,
+        $run = $task->pipelineSteps()->create([
+            'role' => 'pm',
+            'status' => PipelineStepStatus::WaitingGate,
             'input' => [],
             'output' => 'Output',
             'model' => 'claude-opus-4-8',
@@ -73,7 +73,7 @@ class PipelineCockpitServiceTest extends TestCase
 
         Gate::create([
             'task_id' => $task->id,
-            'agent_run_id' => $run->id,
+            'pipeline_step_id' => $run->id,
             'gate_type' => GateType::SpecsReview,
             'status' => GateStatus::Pending,
         ]);
@@ -92,9 +92,9 @@ class PipelineCockpitServiceTest extends TestCase
         $user = User::factory()->create();
         $project = Project::factory()->create(['user_id' => $user->id]);
         $task = Task::factory()->create(['project_id' => $project->id]);
-        $run = $task->agentRuns()->create([
-            'agent_type' => 'pm',
-            'status' => AgentRunStatus::Running,
+        $run = $task->pipelineSteps()->create([
+            'role' => 'pm',
+            'status' => PipelineStepStatus::Running,
             'input' => [],
             'model' => 'claude-opus-4-8',
         ]);
@@ -103,7 +103,7 @@ class PipelineCockpitServiceTest extends TestCase
         $service = new PipelineCockpitService(app(OrchestratorService::class));
         $snapshot = $service->getSnapshot($task);
 
-        $pmStep = collect($snapshot['steps'])->first(fn ($s) => ($s['agent_type'] ?? null) === 'pm');
+        $pmStep = collect($snapshot['steps'])->first(fn ($s) => ($s['role'] ?? null) === 'pm');
         $this->assertNotNull($pmStep);
         $this->assertEquals('blocked', $pmStep['status']);
     }

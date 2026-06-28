@@ -4,7 +4,7 @@ namespace App\Http\Requests\Projects;
 
 use App\Enums\TaskMode;
 use App\Enums\TaskType;
-use Database\Seeders\UserAgentSeeder;
+use Database\Seeders\PipelineRoleSeeder;
 use Illuminate\Foundation\Http\FormRequest;
 use Illuminate\Validation\Rule;
 
@@ -23,11 +23,11 @@ class StoreWizardStep3Request extends FormRequest
         $taskTypes = array_column(TaskType::cases(), 'value');
         $user = $this->user();
 
-        if ($user->agents()->count() === 0) {
-            UserAgentSeeder::seedForUser($user);
+        if ($user->pipelineRoles()->count() === 0) {
+            PipelineRoleSeeder::seedForUser($user);
         }
 
-        $agentSlugs = $user->agents()->pluck('slug')->all();
+        $agentSlugs = $user->pipelineRoles()->pluck('slug')->all();
 
         $rules = [
             'pipeline' => ['required', 'array'],

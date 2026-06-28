@@ -16,7 +16,7 @@ return new class extends Migration
             $table->foreignId('user_id')->constrained()->cascadeOnDelete();
             $table->foreignId('project_id')->constrained()->cascadeOnDelete();
             $table->foreignId('task_id')->nullable()->constrained()->cascadeOnDelete();
-            $table->foreignId('agent_run_id')->nullable()->constrained()->cascadeOnDelete();
+            $table->foreignId('pipeline_step_id')->nullable()->constrained()->cascadeOnDelete();
             $table->date('month');
             $table->integer('input_tokens');
             $table->integer('output_tokens');

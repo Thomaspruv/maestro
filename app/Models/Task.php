@@ -29,7 +29,7 @@ class Task extends Model
         'priority',
         'status',
         'mode',
-        'current_agent',
+        'current_role',
         'github_branch',
         'github_pr_url',
         'github_pr_number',
@@ -57,11 +57,11 @@ class Task extends Model
     }
 
     /**
-     * @return HasMany<AgentRun, $this>
+     * @return HasMany<PipelineStep, $this>
      */
-    public function agentRuns(): HasMany
+    public function pipelineSteps(): HasMany
     {
-        return $this->hasMany(AgentRun::class);
+        return $this->hasMany(PipelineStep::class);
     }
 
     /**

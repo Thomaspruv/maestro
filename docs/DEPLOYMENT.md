@@ -160,24 +160,24 @@ Toutes les 5 minutes :
 2. claim_hermes_task(task_id) — réserve la tâche (anti-doublon, passe en in_progress)
 3. get_task(task_id) — récupère les specs complètes (bloc hermes.specs_preview)
 4. Implémenter le code selon les specs PM / UX / Tech Lead
-5. add_agent_output(task_id, agent_type=dev, output=..., model=...)
+5. record_step_output(task_id, role=dev, output=..., model=...)
 6. Ne pas reprendre une tâche déjà claimée ou avec un run dev existant
 ```
 
-Après `add_agent_output(dev)`, Maestro reprend automatiquement la chaîne d'agents (QA → PR Expert → Doc).
+Après `record_step_output(dev)`, Maestro reprend automatiquement la chaîne pipeline (QA → PR Expert → Doc).
 
 #### Anti-doublon
 
 - Utiliser **`claim_hermes_task`** plutôt que `update_task_status` : réservation atomique avec verrouillage
-- Si le cron échoue avant `add_agent_output`, remettre la tâche en `waiting_hermes` via `update_task_status`
+- Si le cron échoue avant `record_step_output`, remettre la tâche en `waiting_hermes` via `update_task_status`
 
 ### Test bout en bout
 
 1. Hermes appelle `create_task` via MCP
 2. La tâche apparaît dans le kanban Maestro
-3. Après les agents de planning + gate tech, la tâche passe en statut **Hermes** (`waiting_hermes`)
-4. Hermes implémente le code et appelle `add_agent_output` avec `agent_type: dev`
-5. La chaîne d'agents Maestro reprend sur QA → PR Expert → Doc
+3. Après les étapes de planning + gate tech, la tâche passe en statut **Hermes** (`waiting_hermes`)
+4. Hermes implémente le code et appelle `record_step_output` avec `role: dev`
+5. La chaîne pipeline Maestro reprend sur QA → PR Expert → Doc
 
 ## Checklist post-déploiement
 

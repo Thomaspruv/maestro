@@ -2,7 +2,7 @@
 
 namespace Database\Seeders;
 
-use App\Enums\AgentRunStatus;
+use App\Enums\PipelineStepStatus;
 use App\Enums\GateStatus;
 use App\Enums\GateType;
 use App\Enums\ProjectStatus;
@@ -10,12 +10,12 @@ use App\Enums\TaskMode;
 use App\Enums\TaskPriority;
 use App\Enums\TaskStatus;
 use App\Enums\TaskType;
-use App\Models\AgentRun;
+use App\Models\PipelineStep;
 use App\Models\Gate;
 use App\Models\Project;
 use App\Models\Task;
 use App\Models\User;
-use App\Services\ProjectAgentSyncService;
+use App\Services\ProjectRoleSyncService;
 use Illuminate\Database\Seeder;
 use Illuminate\Support\Facades\Hash;
 
@@ -56,8 +56,8 @@ class ThomasRestoreSeeder extends Seeder
             ],
         );
 
-        UserAgentSeeder::seedForUser($user);
-        UserAgentSeeder::refreshBuiltinModels($user);
+        PipelineRoleSeeder::seedForUser($user);
+        PipelineRoleSeeder::refreshBuiltinModels($user);
 
         $modelConfig = config('maestro.default_models', []);
         $modelConfig['dev'] = 'claude-haiku-4-5';
@@ -79,13 +79,13 @@ class ThomasRestoreSeeder extends Seeder
             ],
         );
 
-        if ($project->agents()->count() === 0) {
-            $synced = app(ProjectAgentSyncService::class)->copyUserAgentsToProject($user, $project);
+        if ($project->roles()->count() === 0) {
+            $synced = app(ProjectRoleSyncService::class)->copyUserRolesToProject($user, $project);
             $project->update(['model_config' => array_merge($modelConfig, $synced)]);
         } else {
             $project->update(['model_config' => $modelConfig]);
-            foreach ($project->agents as $agent) {
-                if ($agent->agent_type === 'dev') {
+            foreach ($project->roles as $agent) {
+                if ($agent->role === 'dev') {
                     $agent->update(['model' => 'claude-haiku-4-5']);
                 }
             }
@@ -102,7 +102,7 @@ class ThomasRestoreSeeder extends Seeder
                 'priority' => TaskPriority::High,
                 'status' => TaskStatus::InProgress,
                 'mode' => TaskMode::Manual,
-                'current_agent' => 'dev',
+                'current_role' => 'dev',
                 'sort_order' => 1,
             ],
         );
@@ -133,7 +133,7 @@ class ThomasRestoreSeeder extends Seeder
 Backend : Laravel 13, PHP 8.3
 Frontend : TALL Stack — Livewire 3, Volt (auth Breeze), Alpine.js, Tailwind CSS 3, Vite 8
 Base de données : MySQL en dev local, PostgreSQL 15 en prod
-Queues : Laravel Horizon + Redis (queues agents, dev-agent) — dev local souvent QUEUE_CONNECTION=database
+Queues : Laravel Horizon + Redis (queues agents, REMOVED_DEV_AGENT) — dev local souvent QUEUE_CONNECTION=database
 Temps réel : Laravel Echo + Pusher/Soketi (BROADCAST_CONNECTION=log en local)
 IA : Claude API (Anthropic) via AnthropicClient — agents texte
 IA code : Claude Code CLI — Dev Agent uniquement
@@ -143,18 +143,18 @@ Tests : PHPUnit 12
 Repo : https://github.com/Thomaspruv/maestro
 TEXT,
             'conventions' => <<<'TEXT'
-Architecture : Controllers fins, Services métier (OrchestratorService, AgentRunnerService, DevAgentRunner), Jobs queue
+Architecture : Controllers fins, Services métier (OrchestratorService, PipelineStepRunnerService, DevPipelineStepner), Jobs queue
 Validation : Form Requests
 Nommage : anglais pour le code, français pour l'UI utilisateur
 Agents : slugs string (pm, ux, tech_lead, security, dev, qa, pr_expert, doc, discovery)
 Composants UI : x-maestro.* Blade components, thème dark (bg-base, text-primary, etc.)
-Livewire : composants KanbanBoard, TaskPipeline, AgentOutputViewer, ProjectSettings
+Livewire : composants KanbanBoard, TaskPipeline, StepOutputViewer, ProjectSettings
 TEXT,
             'modules' => <<<'TEXT'
 Projects & wizard (contexte, pipeline, modèles)
 Tasks & Kanban board
 Pipeline agents + gates (specs, tech, merge)
-Agent library (UserAgent / ProjectAgent)
+Agent library (PipelineRole / ProjectRole)
 Discovery chat
 Coûts & budget
 GitHub (connexion compte, dépôt projet, PR)
@@ -165,7 +165,7 @@ Thème dark Maestro : primary violet (#7c3aed), surfaces bg-base/surface/elevate
 Typo : text-xs à text-sm, labels text-text-muted
 Composants : maestro-card, maestro-button, badges statut (success/warning/danger)
 Sidebar 220px, drawer tâche 3 colonnes (timeline | output | actions)
-Emojis agents via config maestro.agent_labels
+Emojis agents via config maestro.role_labels
 TEXT,
             'constraints' => <<<'TEXT'
 Desktop-first (message si viewport < 1200px)
@@ -179,26 +179,26 @@ TEXT,
 
     private function restorePipelineProgress(Task $task): void
     {
-        $task->agentRuns()->delete();
+        $task->pipelineSteps()->delete();
         $task->gates()->delete();
 
         $models = config('maestro.default_models', []);
         $models['dev'] = 'claude-haiku-4-5';
 
         $completedAgents = [
-            'pm' => "Spec produit — feedback visuel pipeline\n\n## Résumé\nAméliorer la visibilité de l'état pipeline pendant l'exécution des agents.\n\n## User stories\n- En tant qu'utilisateur, je vois quel agent tourne et si le worker est actif\n- En tant qu'utilisateur, je comprends quand une gate bloque la pipeline\n\n## Critères d'acceptation\n- Bandeau PipelineHealthService avec états explicites\n- Timeline Kanban synchronisée avec AgentRunUpdated\n- Message si queue database sans worker",
+            'pm' => "Spec produit — feedback visuel pipeline\n\n## Résumé\nAméliorer la visibilité de l'état pipeline pendant l'exécution des agents.\n\n## User stories\n- En tant qu'utilisateur, je vois quel agent tourne et si le worker est actif\n- En tant qu'utilisateur, je comprends quand une gate bloque la pipeline\n\n## Critères d'acceptation\n- Bandeau PipelineHealthService avec états explicites\n- Timeline Kanban synchronisée avec PipelineStepUpdated\n- Message si queue database sans worker",
             'ux' => "UX — wireframes textuels\n\n1. Bandeau santé pipeline en haut du drawer (couleur selon état)\n2. Timeline gauche : étape courante pulsante, gates en jaune\n3. Footer gate sticky avec Approuver/Rejeter toujours visible\n4. État « worker bloqué » en rouge avec instruction `./start-dev`",
-            'tech_lead' => "Plan technique\n\n- Étendre PipelineHealthService (BlockedWorker, stale running)\n- scripts/queue-worker.sh selon QUEUE_CONNECTION\n- TaskPipeline + AgentOutputViewer : wire:poll conditionnel, gate-reviewed event\n- Tests PipelineHealthServiceTest\n- Fichiers : app/Services/PipelineHealthService.php, resources/views/livewire/task-pipeline.blade.php",
-            'security' => "Revue sécurité — OK pour implémentation\n\n- Pas de fuite de tokens dans les messages d'erreur\n- Canaux broadcast : vérifier auth task.{id}\n- Pas d'exécution bash arbitraire côté UI\n- DevAgentRunner : sandbox repo local uniquement",
+            'tech_lead' => "Plan technique\n\n- Étendre PipelineHealthService (BlockedWorker, stale running)\n- scripts/queue-worker.sh selon QUEUE_CONNECTION\n- TaskPipeline + StepOutputViewer : wire:poll conditionnel, gate-reviewed event\n- Tests PipelineHealthServiceTest\n- Fichiers : app/Services/PipelineHealthService.php, resources/views/livewire/task-pipeline.blade.php",
+            'security' => "Revue sécurité — OK pour implémentation\n\n- Pas de fuite de tokens dans les messages d'erreur\n- Canaux broadcast : vérifier auth task.{id}\n- Pas d'exécution bash arbitraire côté UI\n- DevPipelineStepner : sandbox repo local uniquement",
         ];
 
         $runsByType = [];
 
         foreach ($completedAgents as $agentType => $output) {
-            $runsByType[$agentType] = AgentRun::create([
+            $runsByType[$agentType] = PipelineStep::create([
                 'task_id' => $task->id,
-                'agent_type' => $agentType,
-                'status' => AgentRunStatus::Completed,
+                'role' => $agentType,
+                'status' => PipelineStepStatus::Completed,
                 'input' => [],
                 'output' => $output,
                 'model' => $models[$agentType] ?? 'claude-sonnet-4-6',
@@ -210,7 +210,7 @@ TEXT,
 
         Gate::create([
             'task_id' => $task->id,
-            'agent_run_id' => $runsByType['pm']->id,
+            'pipeline_step_id' => $runsByType['pm']->id,
             'gate_type' => GateType::SpecsReview,
             'status' => GateStatus::Approved,
             'reviewed_at' => now()->subHours(2)->addMinutes(10),
@@ -218,7 +218,7 @@ TEXT,
 
         Gate::create([
             'task_id' => $task->id,
-            'agent_run_id' => $runsByType['security']->id,
+            'pipeline_step_id' => $runsByType['security']->id,
             'gate_type' => GateType::TechReview,
             'status' => GateStatus::Approved,
             'reviewed_at' => now()->subHour(),

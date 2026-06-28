@@ -166,6 +166,6 @@ class McpOAuthTest extends TestCase
         ]);
 
         $mcpResponse->assertOk();
-        $this->assertCount(10, $mcpResponse->json('result.tools'));
+        $this->assertCount(11, $mcpResponse->json('result.tools'));
     }
 }

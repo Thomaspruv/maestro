@@ -11,9 +11,9 @@ return new class extends Migration
      */
     public function up(): void
     {
-        Schema::create('agent_prompt_histories', function (Blueprint $table) {
+        Schema::create('role_prompt_histories', function (Blueprint $table) {
             $table->id();
-            $table->foreignId('project_agent_id')->constrained()->cascadeOnDelete();
+            $table->foreignId('project_role_id')->constrained()->cascadeOnDelete();
             $table->text('system_prompt');
             $table->timestamp('created_at')->useCurrent();
         });
@@ -24,6 +24,6 @@ return new class extends Migration
      */
     public function down(): void
     {
-        Schema::dropIfExists('agent_prompt_histories');
+        Schema::dropIfExists('role_prompt_histories');
     }
 };

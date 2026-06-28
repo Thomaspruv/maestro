@@ -7,7 +7,7 @@
     </div>
 
     @if(!$task)
-        <div class="mb-3 grid grid-cols-2 gap-3">
+        <div class="mb-3 grid grid-cols-1 gap-3 sm:grid-cols-2">
             <x-maestro.select wire:model.live="type" label="Type">
                 <option value="feature">Fonctionnalité</option>
                 <option value="bug">Bug</option>
@@ -23,7 +23,7 @@
     @endif
 
     @if($estimate)
-        <div class="mb-3 grid grid-cols-3 gap-2">
+        <div class="mb-3 grid grid-cols-1 gap-2 sm:grid-cols-3">
             <div class="rounded bg-bg-surface px-2 py-1.5 text-center">
                 <p class="text-[9px] text-text-muted">Bas</p>
                 <p class="text-xs font-semibold text-text-primary">${{ number_format($estimate['total_low'], 4) }}</p>
@@ -39,8 +39,8 @@
         </div>
 
         <div class="max-h-48 space-y-1 overflow-y-auto">
-            @foreach($estimate['agents'] ?? [] as $agent => $data)
-                @php $label = config("maestro.agent_labels.{$agent}", []); @endphp
+            @foreach($estimate['roles'] ?? [] as $agent => $data)
+                @php $label = config("maestro.role_labels.{$agent}", []); @endphp
                 <div class="flex items-center justify-between rounded bg-bg-surface px-2 py-1 text-[10px]">
                     <span>{{ $label['emoji'] ?? '🤖' }} {{ $label['name'] ?? $agent }}</span>
                     <span class="text-text-muted">${{ number_format($data['estimated_cost'], 5) }}</span>

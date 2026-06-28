@@ -34,21 +34,21 @@
     </div>
 
     {{-- Filtres --}}
-    <div class="mb-4 flex flex-wrap items-center gap-3">
-        <x-maestro.input wire:model.live.debounce.300ms="search" placeholder="Rechercher une tâche..." class="max-w-xs" />
-        <x-maestro.select wire:model.live="filterType" class="max-w-[140px]">
+    <div class="mb-4 flex flex-col gap-3 sm:flex-row sm:flex-wrap sm:items-center">
+        <x-maestro.input wire:model.live.debounce.300ms="search" placeholder="Rechercher une tâche..." class="w-full sm:max-w-xs" />
+        <x-maestro.select wire:model.live="filterType" class="w-full sm:max-w-[140px]">
             <option value="">Tous les types</option>
             @foreach($taskTypes as $type)
                 <option value="{{ $type->value }}">{{ $type->value }}</option>
             @endforeach
         </x-maestro.select>
-        <x-maestro.select wire:model.live="filterPriority" class="max-w-[140px]">
+        <x-maestro.select wire:model.live="filterPriority" class="w-full sm:max-w-[140px]">
             <option value="">Toutes priorités</option>
             @foreach($priorities as $priority)
                 <option value="{{ $priority->value }}">{{ $priority->value }}</option>
             @endforeach
         </x-maestro.select>
-        <label class="ml-auto flex items-center gap-2 text-xs text-text-muted">
+        <label class="flex items-center gap-2 text-xs text-text-muted sm:ml-auto">
             <input type="checkbox" wire:model.live="polling" class="rounded border-bg-overlay">
             Rafraîchissement auto
         </label>
@@ -133,7 +133,7 @@
     @if($openTask)
         <div class="task-drawer-backdrop" wire:click="closeTask" aria-hidden="true"></div>
         <div class="task-drawer" role="dialog" aria-labelledby="task-drawer-title">
-            <div class="flex items-start justify-between gap-3 border-b px-5 py-4">
+            <div class="flex flex-col gap-3 border-b px-4 py-4 sm:flex-row sm:items-start sm:justify-between sm:px-5">
                 <div class="min-w-0">
                     <x-ui.label>Progression en direct</x-ui.label>
                     <h2 id="task-drawer-title" class="truncate text-[16px] font-medium text-maestro-text">{{ $openTask->title }}</h2>
@@ -143,7 +143,7 @@
                         <x-maestro.badge kind="mode" :value="$openTask->mode" />
                     </div>
                 </div>
-                <div class="flex shrink-0 gap-2">
+                <div class="flex shrink-0 flex-wrap gap-2">
                     <a
                         href="{{ route('projects.tasks.show', [$project, $openTask]) }}"
                         class="maestro-btn-ghost px-2 py-1 text-[10px]"
@@ -154,13 +154,15 @@
                 </div>
             </div>
 
-            <div class="task-drawer-body grid min-h-0 flex-1 grid-cols-[minmax(240px,280px)_1fr] gap-0">
-                <div class="overflow-y-auto border-r p-4">
-                    @livewire('task-pipeline', ['task' => $openTask], key('drawer-pipeline-'.$openTask->id))
-                </div>
-                <div class="flex h-full min-h-0 flex-col overflow-hidden p-4">
-                    @livewire('agent-output-viewer', ['task' => $openTask], key('drawer-output-'.$openTask->id))
-                </div>
+            <div class="task-drawer-body flex min-h-0 flex-1 flex-col p-4">
+                <x-maestro.task-detail-panels class="h-full min-h-0 flex-1">
+                    <x-slot:pipeline>
+                        @livewire('task-pipeline', ['task' => $openTask], key('drawer-pipeline-'.$openTask->id))
+                    </x-slot:pipeline>
+                    <x-slot:output>
+                        @livewire('step-output-viewer', ['task' => $openTask], key('drawer-output-'.$openTask->id))
+                    </x-slot:output>
+                </x-maestro.task-detail-panels>
             </div>
         </div>
     @endif

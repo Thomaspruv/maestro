@@ -2,12 +2,12 @@
 
 namespace Tests\Feature;
 
-use App\Enums\AgentRunStatus;
+use App\Enums\PipelineStepStatus;
 use App\Enums\GateStatus;
 use App\Enums\GateType;
 use App\Enums\TaskStatus;
-use App\Jobs\ParallelAgentGroupJob;
-use App\Models\AgentRun;
+use App\Jobs\ParallelPipelineStepGroupJob;
+use App\Models\PipelineStep;
 use App\Models\Gate;
 use App\Models\Project;
 use App\Models\Task;
@@ -27,14 +27,14 @@ class GateControllerTest extends TestCase
         $user = User::factory()->create();
         $project = Project::factory()->create(['user_id' => $user->id]);
         $task = Task::factory()->create(['project_id' => $project->id, 'status' => TaskStatus::InProgress]);
-        $run = AgentRun::factory()->create([
+        $run = PipelineStep::factory()->create([
             'task_id' => $task->id,
-            'agent_type' => 'pm',
-            'status' => AgentRunStatus::Completed,
+            'role' => 'pm',
+            'status' => PipelineStepStatus::Completed,
         ]);
         $gate = Gate::factory()->create([
             'task_id' => $task->id,
-            'agent_run_id' => $run->id,
+            'pipeline_step_id' => $run->id,
             'gate_type' => GateType::SpecsReview,
             'status' => GateStatus::Pending,
         ]);
@@ -43,7 +43,7 @@ class GateControllerTest extends TestCase
 
         $response->assertRedirect();
         $this->assertSame(GateStatus::Approved, $gate->fresh()->status);
-        Queue::assertPushed(ParallelAgentGroupJob::class);
+        Queue::assertPushed(ParallelPipelineStepGroupJob::class);
     }
 
     public function test_gate_reject_requires_feedback(): void
@@ -51,10 +51,10 @@ class GateControllerTest extends TestCase
         $user = User::factory()->create();
         $project = Project::factory()->create(['user_id' => $user->id]);
         $task = Task::factory()->create(['project_id' => $project->id]);
-        $run = AgentRun::factory()->create(['task_id' => $task->id]);
+        $run = PipelineStep::factory()->create(['task_id' => $task->id]);
         $gate = Gate::factory()->create([
             'task_id' => $task->id,
-            'agent_run_id' => $run->id,
+            'pipeline_step_id' => $run->id,
             'status' => GateStatus::Pending,
         ]);
 

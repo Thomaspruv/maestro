@@ -2,7 +2,7 @@
 
 namespace Database\Seeders;
 
-use App\Enums\AgentType;
+use App\Enums\PipelineRoleSlug;
 use Illuminate\Database\Seeder;
 use InvalidArgumentException;
 
@@ -16,7 +16,7 @@ class AgentPromptSeeder extends Seeder
     public static function prompts(): array
     {
         return [
-            AgentType::Pm->value => <<<'PROMPT'
+            PipelineRoleSlug::Pm->value => <<<'PROMPT'
 Tu es le PM Agent de Maestro, orchestrateur de développement assisté par IA.
 
 ## Objectif mesurable
@@ -71,7 +71,7 @@ Transformer une idée ou un besoin métier en spécification fonctionnelle clair
 ## Critères de complétude
 Ta réponse est incomplète si : une user story manque de bénéfice mesurable, un critère d'acceptation n'est pas vérifiable, ou le hors périmètre n'est pas défini.
 PROMPT,
-            AgentType::Ux->value => <<<'PROMPT'
+            PipelineRoleSlug::Ux->value => <<<'PROMPT'
 Tu es l'UX Agent de Maestro, spécialiste de l'expérience utilisateur.
 
 ## Objectif mesurable
@@ -131,7 +131,7 @@ Concevoir une expérience cohérente, accessible et alignée sur les specs PM et
 ## Critères de complétude
 Ta réponse est incomplète si : un écran mentionné dans les specs PM n'a pas de wireframe, ou les états erreur/chargement sont absents.
 PROMPT,
-            AgentType::TechLead->value => <<<'PROMPT'
+            PipelineRoleSlug::TechLead->value => <<<'PROMPT'
 Tu es le Tech Lead de Maestro, architecte technique du projet.
 
 ## Objectif mesurable
@@ -189,7 +189,7 @@ Traduire les specs PM et UX en plan d'implémentation technique concret, réalis
 ## Critères de complétude
 Ta réponse est incomplète si : un critère d'acceptation PM n'a pas de correspondance technique, ou la liste de fichiers est vague (« modifier le controller » sans chemin).
 PROMPT,
-            AgentType::Security->value => <<<'PROMPT'
+            PipelineRoleSlug::Security->value => <<<'PROMPT'
 Tu es l'agent Security de Maestro, auditeur sécurité avant développement.
 
 ## Objectif mesurable
@@ -237,7 +237,7 @@ Analyser l'approche technique du Tech Lead et identifier les vulnérabilités po
 ## Critères de complétude
 Ta réponse est incomplète si : le verdict est BLOQUANT sans risque bloquant listé, ou les endpoints/formulaires prévus ne sont pas passés en revue.
 PROMPT,
-            AgentType::Dev->value => <<<'PROMPT'
+            PipelineRoleSlug::Dev->value => <<<'PROMPT'
 Tu es le Dev Agent de Maestro, développeur senior du projet.
 
 ## Objectif mesurable
@@ -287,7 +287,7 @@ Implémenter les changements de code demandés en respectant les specs PM, l'UX,
 ## Critères de complétude
 Ta réponse est incomplète si : un fichier listé par le Tech Lead n'est pas mentionné, ou les tests manuels ne couvrent pas les critères d'acceptation PM.
 PROMPT,
-            AgentType::Qa->value => <<<'PROMPT'
+            PipelineRoleSlug::Qa->value => <<<'PROMPT'
 Tu es l'agent QA de Maestro, garant de la qualité logicielle.
 
 ## Objectif mesurable
@@ -341,7 +341,7 @@ Valider que l'implémentation Dev répond aux critères d'acceptation PM et ne i
 ## Critères de complétude
 Ta réponse est incomplète si : un critère AC du PM n'apparaît pas dans le tableau de couverture.
 PROMPT,
-            AgentType::PrExpert->value => <<<'PROMPT'
+            PipelineRoleSlug::PrExpert->value => <<<'PROMPT'
 Tu es le PR Expert de Maestro, rédacteur de pull requests professionnelles.
 
 ## Objectif mesurable
@@ -400,7 +400,7 @@ Produire une description de PR claire, complète et orientée reviewer pour faci
 ## Critères de complétude
 Ta réponse est incomplète si : le test plan est absent ou le titre PR ne décrit pas le changement principal.
 PROMPT,
-            AgentType::Doc->value => <<<'PROMPT'
+            PipelineRoleSlug::Doc->value => <<<'PROMPT'
 Tu es le Doc Agent de Maestro, responsable de la documentation post-merge.
 
 ## Objectif mesurable
@@ -499,7 +499,7 @@ Exemples de bons titres :
 
 Exemples de mauvais titres (à ne jamais proposer) :
 - « Refactoriser OrchestratorService »
-- « Corriger le cast AgentType sur Task »
+- « Corriger le cast PipelineRoleSlug sur Task »
 - « Mettre à jour les dépendances npm »
 
 ## Format de sortie pour les tâches proposées
@@ -525,9 +525,9 @@ PROMPT,
         ];
     }
 
-    public static function for(AgentType|string $type): string
+    public static function for(PipelineRoleSlug|string $type): string
     {
-        $key = $type instanceof AgentType ? $type->value : $type;
+        $key = $type instanceof PipelineRoleSlug ? $type->value : $type;
         $prompts = self::prompts();
 
         if (! isset($prompts[$key])) {

@@ -3,7 +3,7 @@
 @section('title', 'Coûts global')
 
 @section('content')
-    <div class="mb-5 grid grid-cols-4 gap-3">
+    <div class="mb-5 grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-4">
         <x-maestro.stat-card label="Coût du mois" :value="'$'.number_format($currentMonthCost, 2)" icon="💰" />
         @foreach($monthlyTotals->take(3) as $month)
             <x-maestro.stat-card
@@ -13,7 +13,7 @@
         @endforeach
     </div>
 
-    <div class="maestro-card overflow-hidden">
+    <div class="maestro-card overflow-x-auto">
         <table class="w-full text-left text-xs">
             <thead class="border-b border-bg-overlay bg-bg-surface">
                 <tr>
@@ -47,8 +47,8 @@
                             @endif
                         </td>
                         <td class="px-4 py-2 text-text-muted">
-                            @if($log->agentRun)
-                                {{ config('maestro.agent_labels.'.$log->agentRun->agent_type.'.emoji', '🤖') }}
+                            @if($log->pipelineStep)
+                                {{ config('maestro.role_labels.'.$log->pipelineStep->role.'.emoji', '🤖') }}
                             @else
                                 —
                             @endif

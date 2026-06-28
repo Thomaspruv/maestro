@@ -43,7 +43,7 @@ class TaskController extends Controller
         $this->authorize('view', $task);
         abort_unless($task->project_id === $project->id, 404);
 
-        $task->load(['agentRuns', 'gates.agentRun']);
+        $task->load(['pipelineSteps', 'gates.pipelineStep']);
 
         return view('tasks.show', compact('project', 'task'));
     }
@@ -64,7 +64,7 @@ class TaskController extends Controller
 
         $task->update([
             'status' => TaskStatus::InProgress,
-            'current_agent' => null,
+            'current_role' => null,
         ]);
 
         $orchestrator->advance($task->fresh());
@@ -79,7 +79,7 @@ class TaskController extends Controller
 
         $task->update([
             'status' => TaskStatus::InProgress,
-            'current_agent' => null,
+            'current_role' => null,
         ]);
 
         $orchestrator->advance($task->fresh());
@@ -94,7 +94,7 @@ class TaskController extends Controller
 
         $task->update([
             'status' => TaskStatus::Failed,
-            'current_agent' => null,
+            'current_role' => null,
         ]);
 
         return back()->with('success', 'Tâche abandonnée.');

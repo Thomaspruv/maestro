@@ -43,16 +43,16 @@ class RequestGateTool implements McpTool
             'type' => 'object',
             'properties' => [
                 'task_id' => ['type' => 'integer'],
-                'agent_run_id' => ['type' => 'integer'],
+                'pipeline_step_id' => ['type' => 'integer'],
                 'gate_type' => ['type' => 'string', 'enum' => ['gate_specs', 'gate_tech', 'gate_merge', 'specs_review', 'tech_review', 'merge_review']],
             ],
-            'required' => ['task_id', 'agent_run_id', 'gate_type'],
+            'required' => ['task_id', 'pipeline_step_id', 'gate_type'],
         ];
     }
 
     public function execute(array $arguments, User $user): array
     {
-        foreach (['task_id', 'agent_run_id', 'gate_type'] as $field) {
+        foreach (['task_id', 'pipeline_step_id', 'gate_type'] as $field) {
             if (! isset($arguments[$field])) {
                 throw McpToolException::missing($field);
             }
@@ -65,7 +65,7 @@ class RequestGateTool implements McpTool
             throw McpToolException::invalid('gate_type invalide.');
         }
 
-        $run = $task->agentRuns()->whereKey((int) $arguments['agent_run_id'])->first();
+        $run = $task->pipelineSteps()->whereKey((int) $arguments['pipeline_step_id'])->first();
 
         if ($run === null) {
             throw McpToolException::notFound('agent_run');
@@ -73,7 +73,7 @@ class RequestGateTool implements McpTool
 
         $gate = Gate::create([
             'task_id' => $task->id,
-            'agent_run_id' => $run->id,
+            'pipeline_step_id' => $run->id,
             'gate_type' => $gateType,
             'status' => GateStatus::Pending,
         ]);

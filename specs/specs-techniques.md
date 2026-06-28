@@ -95,18 +95,18 @@ status          enum('active','archived') default 'active'
 created_at, updated_at
 ```
 
-### `project_agents`
+### `project_roles`
 ```sql
 id              bigint PK
 project_id      bigint FK → projects
-agent_type      enum('pm','ux','tech_lead','security','dev','qa','pr_expert','doc')
+role      enum('pm','ux','tech_lead','security','dev','qa','pr_expert','doc')
 is_active       boolean default true
 model           string              -- claude-sonnet-4-6 | claude-haiku-4-5 | claude-opus-4-8
 system_prompt   text                -- prompt système éditable, pré-rempli par défaut
 sort_order      integer             -- ordre dans le pipeline
 created_at, updated_at
 
-UNIQUE(project_id, agent_type)
+UNIQUE(project_id, role)
 ```
 
 ### `tasks`
@@ -120,7 +120,7 @@ type            enum('feature','bug','improvement','chore')
 priority        enum('critical','high','medium','low') default 'medium'
 status          enum('backlog','in_progress','in_review','done','failed') default 'backlog'
 mode            enum('manual','semi_auto','full_auto')
-current_agent   string nullable     -- agent_type en cours d'exécution
+current_role   string nullable     -- role en cours d'exécution
 github_branch   string nullable
 github_pr_url   string nullable
 github_pr_number integer nullable
@@ -131,11 +131,11 @@ sort_order      integer default 0   -- pour le Kanban drag & drop
 created_at, updated_at
 ```
 
-### `agent_runs`
+### `pipeline_steps`
 ```sql
 id              bigint PK
 task_id         bigint FK → tasks
-agent_type      enum('pm','ux','tech_lead','security','dev','qa','pr_expert','doc')
+role      enum('pm','ux','tech_lead','security','dev','qa','pr_expert','doc')
 status          enum('pending','running','completed','failed','waiting_gate','skipped')
 input           jsonb               -- contexte complet envoyé à l'agent
 output          text nullable       -- output brut
@@ -156,7 +156,7 @@ created_at, updated_at
 ```sql
 id              bigint PK
 task_id         bigint FK → tasks
-agent_run_id    bigint FK → agent_runs  -- agent qui attend la validation
+pipeline_step_id    bigint FK → pipeline_steps  -- agent qui attend la validation
 gate_type       enum('specs_review','tech_review','merge_review')
 status          enum('pending','approved','rejected')
 feedback        text nullable       -- feedback si rejeté
@@ -171,7 +171,7 @@ id              bigint PK
 user_id         bigint FK → users
 project_id      bigint FK → projects
 task_id         bigint FK → tasks nullable
-agent_run_id    bigint FK → agent_runs nullable
+pipeline_step_id    bigint FK → pipeline_steps nullable
 month           date                -- premier jour du mois (ex: 2026-06-01)
 input_tokens    integer
 output_tokens   integer
@@ -230,9 +230,9 @@ DELETE /projects/{project}      → ProjectController@destroy
 
 GET  /projects/{project}/settings           → ProjectSettingsController@edit
 PUT  /projects/{project}/settings           → ProjectSettingsController@update
-PUT  /projects/{project}/settings/agents    → ProjectAgentController@update
+PUT  /projects/{project}/settings/roles    → ProjectRoleController@update
 PUT  /projects/{project}/settings/pipeline  → ProjectPipelineController@update
-POST /projects/{project}/settings/agents/{type}/test → ProjectAgentController@test
+POST /projects/{project}/settings/roles/{type}/test → ProjectRoleController@test
 ```
 
 ### Tasks
@@ -252,7 +252,7 @@ GET  /projects/{project}/tasks/{task}/estimate → CostEstimatorController@estim
 ```
 POST /gates/{gate}/approve  → GateController@approve
 POST /gates/{gate}/reject   → GateController@reject
-PUT  /agent-runs/{run}/output → AgentRunController@updateOutput  (édition inline)
+PUT  /pipeline-steps/{step}/output → PipelineStepController@updateOutput  (édition inline)
 ```
 
 ### Coûts
@@ -285,7 +285,7 @@ class OrchestratorService
 {
     public function advance(Task $task): void
     {
-        $nextAgent = $this->resolveNextAgent($task);
+        $nextAgent = $this->resolveNextRole($task);
 
         if (!$nextAgent) {
             $task->update(['status' => 'done']);
@@ -294,10 +294,10 @@ class OrchestratorService
         }
 
         if ($this->requiresGate($task, $nextAgent)) {
-            $lastRun = $task->agentRuns()->latest()->first();
+            $lastRun = $task->pipelineSteps()->latest()->first();
             $gate = Gate::create([
                 'task_id'      => $task->id,
-                'agent_run_id' => $lastRun->id,
+                'pipeline_step_id' => $lastRun->id,
                 'gate_type'    => $this->resolveGateType($nextAgent),
                 'status'       => 'pending',
             ]);
@@ -306,15 +306,15 @@ class OrchestratorService
             return;
         }
 
-        dispatch(new RunAgentJob($task, $nextAgent));
+        dispatch(new RunPipelineStepJob($task, $nextAgent));
     }
 
-    private function resolveNextAgent(Task $task): ?string
+    private function resolveNextRole(Task $task): ?string
     {
         $pipeline = $this->getPipelineForTask($task);
-        $completed = $task->agentRuns()
+        $completed = $task->pipelineSteps()
             ->whereIn('status', ['completed', 'skipped'])
-            ->pluck('agent_type')
+            ->pluck('role')
             ->toArray();
 
         foreach ($pipeline as $agent) {
@@ -370,19 +370,19 @@ class OrchestratorService
 
 ---
 
-### `AgentRunnerService`
+### `PipelineStepRunnerService`
 
 Exécute un agent via la Claude API avec prompt caching.
 
 ```php
-class AgentRunnerService
+class PipelineStepRunnerService
 {
-    public function run(AgentRun $run): AgentResult
+    public function run(PipelineStep $run): PipelineStepResult
     {
         $project = $run->task->project;
         $apiKey  = decrypt($project->user->claude_api_key);
-        $agent   = AgentFactory::make($run->agent_type, $project);
-        $model   = $project->model_config[$run->agent_type] ?? 'claude-sonnet-4-6';
+        $agent   = RunnerFactory::make($run->role, $project);
+        $model   = $project->model_config[$run->role] ?? 'claude-sonnet-4-6';
 
         $client = Anthropic::factory()->withApiKey($apiKey)->make();
 
@@ -415,7 +415,7 @@ class AgentRunnerService
             'user_id'       => $project->user_id,
             'project_id'    => $project->id,
             'task_id'       => $run->task_id,
-            'agent_run_id'  => $run->id,
+            'pipeline_step_id'  => $run->id,
             'month'         => now()->startOfMonth(),
             'input_tokens'  => $usage->inputTokens,
             'output_tokens' => $usage->outputTokens,
@@ -424,7 +424,7 @@ class AgentRunnerService
             'model'         => $model,
         ]);
 
-        return new AgentResult(
+        return new PipelineStepResult(
             output:       $response->content[0]->text,
             inputTokens:  $usage->inputTokens,
             outputTokens: $usage->outputTokens,
@@ -474,14 +474,14 @@ class AgentRunnerService
 
 ---
 
-### `RunAgentJob`
+### `RunPipelineStepJob`
 
 Job Horizon qui orchestre l'exécution d'un agent et relance l'orchestrateur.
 
 ```php
-class RunAgentJob implements ShouldQueue
+class RunPipelineStepJob implements ShouldQueue
 {
-    public string $queue = 'agents';
+    public string $queue = 'roles';
     public int $timeout  = 120;
 
     public function __construct(
@@ -489,23 +489,23 @@ class RunAgentJob implements ShouldQueue
         public readonly string $agentType,
     ) {}
 
-    public function handle(AgentRunnerService $runner, OrchestratorService $orchestrator): void
+    public function handle(PipelineStepRunnerService $runner, OrchestratorService $orchestrator): void
     {
-        $run = AgentRun::create([
+        $run = PipelineStep::create([
             'task_id'    => $this->task->id,
-            'agent_type' => $this->agentType,
+            'role' => $this->agentType,
             'status'     => 'running',
             'input'      => $this->buildInput(),
             'model'      => $this->task->project->model_config[$this->agentType] ?? 'claude-sonnet-4-6',
         ]);
 
-        $this->task->update(['current_agent' => $this->agentType]);
-        broadcast(new AgentRunUpdated($run));
+        $this->task->update(['current_role' => $this->agentType]);
+        broadcast(new PipelineStepUpdated($run));
 
         try {
             // Dev Agent a son propre runner (Claude Code CLI)
             $result = $this->agentType === 'dev'
-                ? app(DevAgentRunner::class)->run($run)
+                ? app(DevPipelineStepner::class)->run($run)
                 : $runner->run($run);
 
             $run->update([
@@ -519,7 +519,7 @@ class RunAgentJob implements ShouldQueue
             ]);
 
             $this->task->increment('actual_cost', $result->cost);
-            broadcast(new AgentRunUpdated($run->fresh()));
+            broadcast(new PipelineStepUpdated($run->fresh()));
             $orchestrator->advance($this->task->fresh());
 
         } catch (Throwable $e) {
@@ -528,8 +528,8 @@ class RunAgentJob implements ShouldQueue
                 $this->release(30);
             } else {
                 $run->update(['status' => 'failed', 'error_message' => $e->getMessage()]);
-                $this->task->update(['status' => 'failed', 'current_agent' => null]);
-                broadcast(new AgentRunUpdated($run));
+                $this->task->update(['status' => 'failed', 'current_role' => null]);
+                broadcast(new PipelineStepUpdated($run));
                 app(NotificationService::class)->notifyFailure($this->task, $run);
             }
         }
@@ -538,11 +538,11 @@ class RunAgentJob implements ShouldQueue
     private function buildInput(): array
     {
         // Agrège tous les outputs (édités si disponibles) des agents précédents
-        return $this->task->agentRuns()
+        return $this->task->pipelineSteps()
             ->where('status', 'completed')
             ->get()
             ->mapWithKeys(fn($r) => [
-                $r->agent_type => $r->edited_output ?? $r->output
+                $r->role => $r->edited_output ?? $r->output
             ])
             ->toArray();
     }
@@ -551,16 +551,16 @@ class RunAgentJob implements ShouldQueue
 
 ---
 
-### `DevAgentRunner`
+### `DevPipelineStepner`
 
 Exécute Claude Code CLI sur le serveur, avec boucle de validation.
 
 ```php
-class DevAgentRunner
+class DevPipelineStepner
 {
-    public string $queue = 'dev-agent';
+    public string $queue = 'REMOVED_DEV_AGENT';
 
-    public function run(AgentRun $run): AgentResult
+    public function run(PipelineStep $run): PipelineStepResult
     {
         $project  = $run->task->project;
         $repoPath = $this->cloneOrPull($project);
@@ -581,7 +581,7 @@ class DevAgentRunner
                 $prDescription = $this->buildPrDescription($run, $validation);
                 $pr = app(GitHubService::class)->openPullRequest($run->task, $branch, $prDescription);
 
-                return new AgentResult(
+                return new PipelineStepResult(
                     output:  "Branche : `{$branch}`\nPR : {$pr['html_url']}\nTests : {$validation->summary()}",
                     prUrl:   $pr['html_url'],
                     prBranch: $branch,
@@ -695,7 +695,7 @@ class GitHubService
 
         if ($status === 'merged') {
             $task->update(['status' => 'done']);
-            dispatch(new RunAgentJob($task, 'doc'));
+            dispatch(new RunPipelineStepJob($task, 'doc'));
         }
     }
 
@@ -762,7 +762,7 @@ class CostEstimatorService
         }
 
         return [
-            'agents'       => $estimates,
+            'roles'       => $estimates,
             'total_low'    => round($total * 0.8, 4),
             'total_high'   => round($total * 1.5, 4),
             'total_mid'    => round($total, 4),
@@ -829,9 +829,9 @@ class GateController extends Controller
         ]);
 
         // Relance l'agent avec le feedback
-        dispatch(new RunAgentJob(
+        dispatch(new RunPipelineStepJob(
             $gate->task,
-            $gate->agentRun->agent_type,
+            $gate->agentRun->role,
             feedback: $request->feedback
         ));
 
@@ -892,11 +892,11 @@ class ProjectWizardController extends Controller
             'model_config'   => $data['step4']['models'],
         ]);
 
-        // Créer les project_agents avec les prompts personnalisés
-        foreach ($data['step4']['agents'] as $type => $config) {
-            ProjectAgent::create([
+        // Créer les project_roles avec les prompts personnalisés
+        foreach ($data['step4']['roles'] as $type => $config) {
+            ProjectRole::create([
                 'project_id'    => $project->id,
-                'agent_type'    => $type,
+                'role'    => $type,
                 'is_active'     => $config['is_active'],
                 'model'         => $config['model'],
                 'system_prompt' => $config['system_prompt'],
@@ -918,7 +918,7 @@ class ProjectWizardController extends Controller
 ```php
 // Events diffusés sur le channel "task.{id}"
 
-class AgentRunUpdated implements ShouldBroadcast
+class PipelineStepUpdated implements ShouldBroadcast
 {
     public function broadcastOn(): Channel
     {
@@ -929,7 +929,7 @@ class AgentRunUpdated implements ShouldBroadcast
     {
         return [
             'run_id'     => $this->run->id,
-            'agent_type' => $this->run->agent_type,
+            'role' => $this->run->role,
             'status'     => $this->run->status,
             'cost'       => $this->run->cost,
             'output'     => $this->run->status === 'completed' ? $this->run->output : null,
@@ -964,7 +964,7 @@ class TaskPipeline extends Component
     protected function getListeners(): array
     {
         return [
-            "echo:task.{$this->task->id},AgentRunUpdated" => '$refresh',
+            "echo:task.{$this->task->id},PipelineStepUpdated" => '$refresh',
             "echo:task.{$this->task->id},GatePending"     => '$refresh',
             "echo:task.{$this->task->id},TaskCompleted"   => '$refresh',
         ];
@@ -973,7 +973,7 @@ class TaskPipeline extends Component
     public function render(): View
     {
         return view('livewire.task-pipeline', [
-            'runs'         => $this->task->agentRuns()->orderBy('created_at')->get(),
+            'runs'         => $this->task->pipelineSteps()->orderBy('created_at')->get(),
             'pendingGates' => $this->task->gates()->where('status', 'pending')->get(),
         ]);
     }
@@ -1067,15 +1067,15 @@ class ApiKeyController extends Controller
 
 ---
 
-## 9. AgentFactory — Prompts par défaut
+## 9. RunnerFactory — Prompts par défaut
 
 ```php
-class AgentFactory
+class RunnerFactory
 {
-    public static function make(string $type, Project $project): BaseAgent
+    public static function make(string $type, Project $project): BaseRunner
     {
-        // Cherche d'abord le prompt personnalisé dans project_agents
-        $customAgent = $project->agents()->where('agent_type', $type)->first();
+        // Cherche d'abord le prompt personnalisé dans project_roles
+        $customAgent = $project->roles()->where('role', $type)->first();
         $systemPrompt = $customAgent?->system_prompt ?? self::defaultPrompt($type);
 
         return match($type) {
@@ -1095,7 +1095,7 @@ class AgentFactory
 
 Chaque Agent implémente :
 - `systemPrompt(): string` — prompt système (rôle, objectif, format de sortie attendu)
-- `buildPrompt(AgentRun $run): string` — construit le prompt utilisateur avec le contexte de la tâche et les outputs des agents précédents
+- `buildPrompt(PipelineStep $run): string` — construit le prompt utilisateur avec le contexte de la tâche et les outputs des agents précédents
 
 ---
 
@@ -1148,17 +1148,17 @@ MAESTRO_REPOS_PATH=/srv/maestro-repos
 ```php
 'environments' => [
     'production' => [
-        'agents' => [
+        'roles' => [
             'connection' => 'redis',
-            'queue'      => ['agents'],
+            'queue'      => ['roles'],
             'balance'    => 'auto',
             'processes'  => 5,
             'tries'      => 1,      // retry géré dans le job
             'timeout'    => 120,    // 2 min max (Claude API)
         ],
-        'dev-agent' => [
+        'REMOVED_DEV_AGENT' => [
             'connection' => 'redis',
-            'queue'      => ['dev-agent'],
+            'queue'      => ['REMOVED_DEV_AGENT'],
             'balance'    => 'simple',
             'processes'  => 2,
             'tries'      => 1,
@@ -1192,7 +1192,7 @@ app/
 │   │   │   ├── ProjectController.php
 │   │   │   ├── ProjectWizardController.php
 │   │   │   ├── ProjectSettingsController.php
-│   │   │   └── ProjectAgentController.php
+│   │   │   └── ProjectRoleController.php
 │   │   ├── Tasks/
 │   │   │   ├── TaskController.php
 │   │   │   └── CostEstimatorController.php
@@ -1210,25 +1210,25 @@ app/
 ├── Models/
 │   ├── User.php
 │   ├── Project.php
-│   ├── ProjectAgent.php
+│   ├── ProjectRole.php
 │   ├── Task.php
-│   ├── AgentRun.php
+│   ├── PipelineStep.php
 │   ├── Gate.php
 │   ├── CostLog.php
 │   └── ProjectWizardDraft.php
 │
 ├── Services/
 │   ├── OrchestratorService.php
-│   ├── AgentRunnerService.php
-│   ├── DevAgentRunner.php
+│   ├── PipelineStepRunnerService.php
+│   ├── DevPipelineStepner.php
 │   ├── GitHubService.php
 │   ├── CostEstimatorService.php
 │   ├── NotificationService.php
 │   └── GitHubContextReader.php
 │
 ├── Agents/
-│   ├── BaseAgent.php
-│   ├── AgentFactory.php
+│   ├── BaseRunner.php
+│   ├── RunnerFactory.php
 │   ├── PmAgent.php
 │   ├── UxAgent.php
 │   ├── TechLeadAgent.php
@@ -1239,16 +1239,16 @@ app/
 │   └── DocAgent.php
 │
 ├── Jobs/
-│   └── RunAgentJob.php
+│   └── RunPipelineStepJob.php
 │
 ├── Events/
-│   ├── AgentRunUpdated.php
+│   ├── PipelineStepUpdated.php
 │   ├── GatePending.php
 │   └── TaskCompleted.php
 │
 └── Livewire/
     ├── TaskPipeline.php
-    ├── AgentOutputViewer.php
+    ├── StepOutputViewer.php
     ├── CostEstimationPanel.php
     └── ProjectWizard.php
 ```

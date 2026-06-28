@@ -3,7 +3,7 @@
     x-init="
         if (window.Echo) {
             Echo.channel('task.{{ $task->id }}')
-                .listen('.AgentRunUpdated', () => $wire.refreshTask())
+                .listen('.PipelineStepUpdated', () => $wire.refreshTask())
                 .listen('.GatePending', () => $wire.refreshTask());
         }
     "
@@ -104,7 +104,7 @@
             </div>
 
             @php
-                $agentGate = $pendingGates->first(fn ($g) => $g->agentRun?->agent_type === $agent);
+                $agentGate = $pendingGates->first(fn ($g) => $g->pipelineStep?->role === $agent);
             @endphp
             @if($agentGate)
                 <div class="maestro-gate-block mx-3 my-1" wire:click.stop>

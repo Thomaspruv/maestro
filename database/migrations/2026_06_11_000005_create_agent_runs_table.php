@@ -11,10 +11,10 @@ return new class extends Migration
      */
     public function up(): void
     {
-        Schema::create('agent_runs', function (Blueprint $table) {
+        Schema::create('pipeline_steps', function (Blueprint $table) {
             $table->id();
             $table->foreignId('task_id')->constrained()->cascadeOnDelete();
-            $table->string('agent_type');
+            $table->string('role');
             $table->string('status');
             $table->json('input');
             $table->text('output')->nullable();
@@ -37,6 +37,6 @@ return new class extends Migration
      */
     public function down(): void
     {
-        Schema::dropIfExists('agent_runs');
+        Schema::dropIfExists('pipeline_steps');
     }
 };

@@ -2,13 +2,13 @@
 
 namespace Tests\Feature\Mcp;
 
-use App\Enums\AgentRunStatus;
+use App\Enums\PipelineStepStatus;
 use App\Enums\GateStatus;
 use App\Enums\GateType;
 use App\Enums\TaskStatus;
 use App\Events\GatePending;
-use App\Jobs\RunAgentJob;
-use App\Models\AgentRun;
+use App\Jobs\RunPipelineStepJob;
+use App\Models\PipelineStep;
 use App\Models\McpToken;
 use App\Models\Project;
 use App\Models\Task;
@@ -68,11 +68,12 @@ class McpServerTest extends TestCase
 
         $this->assertContains('list_projects', $names);
         $this->assertContains('create_task', $names);
-        $this->assertContains('add_agent_output', $names);
+        $this->assertContains('record_step_output', $names);
         $this->assertContains('request_gate', $names);
         $this->assertContains('list_hermes_tasks', $names);
         $this->assertContains('claim_hermes_task', $names);
-        $this->assertCount(10, $names);
+        $this->assertContains('add_agent_output', $names);
+        $this->assertCount(11, $names);
     }
 
     public function test_invalid_token_returns_401(): void
@@ -114,16 +115,16 @@ class McpServerTest extends TestCase
         ]);
     }
 
-    public function test_add_agent_output_creates_run_and_cost_log(): void
+    public function test_record_step_output_creates_run_and_cost_log(): void
     {
         $project = Project::factory()->create(['user_id' => $this->user->id]);
         $task = Task::factory()->create(['project_id' => $project->id]);
 
         $response = $this->mcp('tools/call', [
-            'name' => 'add_agent_output',
+            'name' => 'record_step_output',
             'arguments' => [
                 'task_id' => $task->id,
-                'agent_type' => 'qa',
+                'role' => 'qa',
                 'output' => 'Tests OK',
                 'model' => 'deepseek/deepseek-chat',
                 'input_tokens' => 100,
@@ -134,10 +135,10 @@ class McpServerTest extends TestCase
 
         $response->assertOk();
 
-        $this->assertDatabaseHas('agent_runs', [
+        $this->assertDatabaseHas('pipeline_steps', [
             'task_id' => $task->id,
-            'agent_type' => 'qa',
-            'status' => AgentRunStatus::Completed->value,
+            'role' => 'qa',
+            'status' => PipelineStepStatus::Completed->value,
         ]);
 
         $this->assertDatabaseHas('cost_logs', [
@@ -152,13 +153,13 @@ class McpServerTest extends TestCase
 
         $project = Project::factory()->create(['user_id' => $this->user->id]);
         $task = Task::factory()->create(['project_id' => $project->id]);
-        $run = AgentRun::factory()->create(['task_id' => $task->id]);
+        $run = PipelineStep::factory()->create(['task_id' => $task->id]);
 
         $response = $this->mcp('tools/call', [
             'name' => 'request_gate',
             'arguments' => [
                 'task_id' => $task->id,
-                'agent_run_id' => $run->id,
+                'pipeline_step_id' => $run->id,
                 'gate_type' => 'gate_tech',
             ],
         ]);
@@ -167,7 +168,7 @@ class McpServerTest extends TestCase
 
         $this->assertDatabaseHas('gates', [
             'task_id' => $task->id,
-            'agent_run_id' => $run->id,
+            'pipeline_step_id' => $run->id,
             'gate_type' => GateType::TechReview->value,
             'status' => GateStatus::Pending->value,
         ]);
@@ -175,7 +176,7 @@ class McpServerTest extends TestCase
         Event::assertDispatched(GatePending::class);
     }
 
-    public function test_add_agent_output_dev_resumes_orchestrator_from_waiting_hermes(): void
+    public function test_record_step_output_dev_resumes_orchestrator_from_waiting_hermes(): void
     {
         Bus::fake();
 
@@ -183,22 +184,22 @@ class McpServerTest extends TestCase
         $task = Task::factory()->create([
             'project_id' => $project->id,
             'status' => TaskStatus::WaitingHermes,
-            'current_agent' => 'hermes',
+            'current_role' => 'hermes',
         ]);
 
         foreach (['pm', 'ux', 'tech_lead', 'security'] as $agent) {
-            AgentRun::factory()->create([
+            PipelineStep::factory()->create([
                 'task_id' => $task->id,
-                'agent_type' => $agent,
-                'status' => AgentRunStatus::Completed,
+                'role' => $agent,
+                'status' => PipelineStepStatus::Completed,
             ]);
         }
 
         $response = $this->mcp('tools/call', [
-            'name' => 'add_agent_output',
+            'name' => 'record_step_output',
             'arguments' => [
                 'task_id' => $task->id,
-                'agent_type' => 'dev',
+                'role' => 'dev',
                 'output' => 'Code implémenté par Hermes',
                 'model' => 'deepseek/deepseek-chat',
                 'cost' => 0,
@@ -207,13 +208,13 @@ class McpServerTest extends TestCase
 
         $response->assertOk();
 
-        $this->assertDatabaseHas('agent_runs', [
+        $this->assertDatabaseHas('pipeline_steps', [
             'task_id' => $task->id,
-            'agent_type' => 'dev',
-            'status' => AgentRunStatus::Completed->value,
+            'role' => 'dev',
+            'status' => PipelineStepStatus::Completed->value,
         ]);
 
-        Bus::assertDispatched(RunAgentJob::class, fn (RunAgentJob $job) => $job->agentType === 'qa');
+        Bus::assertDispatched(RunPipelineStepJob::class, fn (RunPipelineStepJob $job) => $job->role === 'qa');
     }
 
     public function test_list_hermes_tasks_returns_tasks_ready_for_hermes(): void
@@ -223,7 +224,7 @@ class McpServerTest extends TestCase
             'project_id' => $project->id,
             'title' => 'Prête pour Hermes',
             'status' => TaskStatus::WaitingHermes,
-            'current_agent' => 'hermes',
+            'current_role' => 'hermes',
             'priority' => 'high',
         ]);
         Task::factory()->create([
@@ -253,10 +254,10 @@ class McpServerTest extends TestCase
             'project_id' => $project->id,
             'status' => TaskStatus::WaitingHermes,
         ]);
-        AgentRun::factory()->create([
+        PipelineStep::factory()->create([
             'task_id' => $task->id,
-            'agent_type' => 'dev',
-            'status' => AgentRunStatus::Completed,
+            'role' => 'dev',
+            'status' => PipelineStepStatus::Completed,
         ]);
 
         $response = $this->mcp('tools/call', [
@@ -276,7 +277,7 @@ class McpServerTest extends TestCase
         $task = Task::factory()->create([
             'project_id' => $project->id,
             'status' => TaskStatus::WaitingHermes,
-            'current_agent' => 'hermes',
+            'current_role' => 'hermes',
         ]);
 
         $response = $this->mcp('tools/call', [
@@ -292,7 +293,7 @@ class McpServerTest extends TestCase
         $this->assertDatabaseHas('tasks', [
             'id' => $task->id,
             'status' => TaskStatus::InProgress->value,
-            'current_agent' => 'hermes',
+            'current_role' => 'hermes',
         ]);
     }
 
@@ -302,7 +303,7 @@ class McpServerTest extends TestCase
         $task = Task::factory()->create([
             'project_id' => $project->id,
             'status' => TaskStatus::InProgress,
-            'current_agent' => 'hermes',
+            'current_role' => 'hermes',
         ]);
 
         $response = $this->mcp('tools/call', [
@@ -325,10 +326,10 @@ class McpServerTest extends TestCase
             'project_id' => $project->id,
             'status' => TaskStatus::WaitingHermes,
         ]);
-        AgentRun::factory()->create([
+        PipelineStep::factory()->create([
             'task_id' => $task->id,
-            'agent_type' => 'tech_lead',
-            'status' => AgentRunStatus::Completed,
+            'role' => 'tech_lead',
+            'status' => PipelineStepStatus::Completed,
             'output' => 'Specs techniques détaillées',
         ]);
 

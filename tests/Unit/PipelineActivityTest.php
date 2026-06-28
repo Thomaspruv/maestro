@@ -2,9 +2,9 @@
 
 namespace Tests\Unit;
 
-use App\Enums\AgentRunStatus;
+use App\Enums\PipelineStepStatus;
 use App\Enums\TaskStatus;
-use App\Models\AgentRun;
+use App\Models\PipelineStep;
 use App\Models\Task;
 use App\Support\PipelineActivity;
 use PHPUnit\Framework\Attributes\Test;
@@ -24,8 +24,8 @@ class PipelineActivityTest extends TestCase
     public function should_poll_when_an_agent_is_running(): void
     {
         $task = new Task(['status' => TaskStatus::Done]);
-        $task->setRelation('agentRuns', collect([
-            new AgentRun(['status' => AgentRunStatus::Running, 'agent_type' => 'pm']),
+        $task->setRelation('pipelineSteps', collect([
+            new PipelineStep(['status' => PipelineStepStatus::Running, 'role' => 'pm']),
         ]));
 
         $this->assertTrue(PipelineActivity::shouldPoll($task));
@@ -34,14 +34,14 @@ class PipelineActivityTest extends TestCase
     #[Test]
     public function agent_message_describes_pm_work(): void
     {
-        $this->assertStringContainsString('specs', PipelineActivity::agentMessage('pm'));
+        $this->assertStringContainsString('specs', PipelineActivity::roleMessage('pm'));
     }
 
     #[Test]
-    public function current_agent_type_reads_string_column(): void
+    public function current_role_type_reads_string_column(): void
     {
-        $task = new Task(['current_agent' => 'ux']);
+        $task = new Task(['current_role' => 'ux']);
 
-        $this->assertSame('ux', PipelineActivity::currentAgentType($task));
+        $this->assertSame('ux', PipelineActivity::currentPipelineRoleSlug($task));
     }
 }

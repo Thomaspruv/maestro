@@ -1,7 +1,7 @@
 <div>
     {{-- Navigation sections --}}
-    <div class="mb-5 flex gap-2 border-b border-bg-overlay pb-3">
-        @foreach(['github' => 'Dépôt GitHub', 'context' => 'Contexte', 'agents' => 'Agents', 'pipeline' => 'Pipeline'] as $key => $label)
+    <div class="mb-5 flex flex-nowrap gap-2 overflow-x-auto border-b border-bg-overlay pb-3">
+        @foreach(['github' => 'Dépôt GitHub', 'context' => 'Contexte', 'roles' => 'Agents', 'pipeline' => 'Pipeline'] as $key => $label)
             <button
                 @if($key === 'github')
                     wire:click="showGithubSection"
@@ -9,7 +9,7 @@
                     wire:click="$set('activeSection', '{{ $key }}')"
                 @endif
                 @class([
-                    'inline-flex items-center gap-1.5 rounded-md px-3 py-1.5 text-xs font-semibold transition-colors',
+                    'inline-flex shrink-0 items-center gap-1.5 rounded-md px-3 py-1.5 text-xs font-semibold transition-colors',
                     'bg-primary-muted text-primary-light' => $activeSection === $key,
                     'text-text-secondary hover:text-text-primary' => $activeSection !== $key,
                 ])
@@ -93,19 +93,16 @@
     @endif
 
     {{-- Agents --}}
-    @if($activeSection === 'agents')
-        <div class="mb-4 flex items-center justify-between">
+    @if($activeSection === 'roles')
+        <div class="mb-4">
             <p class="text-xs text-text-secondary">
-                Overrides spécifiques à ce projet. Modifiez la bibliothèque globale pour les nouveaux projets.
+                Overrides spécifiques à ce projet. Les rôles built-in sont hérités de votre compte Maestro.
             </p>
-            <a href="{{ route('agents.index') }}" class="text-xs text-primary-light hover:underline">
-                Modifier la bibliothèque →
-            </a>
         </div>
         <div class="space-y-2">
             @foreach($agents as $index => $agent)
                 @php
-                    $type = $agent['agent_type'];
+                    $type = $agent['role'];
                     $label = $agentLabels[$type] ?? ['emoji' => '🤖', 'name' => $type];
                 @endphp
                 <div class="maestro-card overflow-hidden">
@@ -168,7 +165,7 @@
                         @endforeach
                     </div>
 
-                    <div class="grid grid-cols-3 gap-2">
+                    <div class="grid grid-cols-1 gap-2 sm:grid-cols-2 lg:grid-cols-3">
                         <label class="flex items-center gap-1 text-[10px]">
                             <input type="checkbox" wire:model="gates.{{ $type->value }}.gate_specs" class="rounded border-bg-overlay">
                             Gate specs

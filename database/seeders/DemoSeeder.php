@@ -10,7 +10,7 @@ use App\Enums\TaskType;
 use App\Models\Project;
 use App\Models\Task;
 use App\Models\User;
-use App\Services\ProjectAgentSyncService;
+use App\Services\ProjectRoleSyncService;
 use Illuminate\Database\Seeder;
 use Illuminate\Support\Facades\Hash;
 
@@ -34,7 +34,7 @@ class DemoSeeder extends Seeder
             ],
         );
 
-        UserAgentSeeder::seedForUser($user);
+        PipelineRoleSeeder::seedForUser($user);
 
         $project = Project::create([
             'user_id' => $user->id,
@@ -65,7 +65,7 @@ class DemoSeeder extends Seeder
             'status' => ProjectStatus::Active,
         ]);
 
-        $modelConfig = app(ProjectAgentSyncService::class)->copyUserAgentsToProject($user, $project);
+        $modelConfig = app(ProjectRoleSyncService::class)->copyUserRolesToProject($user, $project);
         $project->update(['model_config' => $modelConfig]);
 
         $tasks = [
@@ -87,7 +87,7 @@ class DemoSeeder extends Seeder
                 'priority' => TaskPriority::Medium,
                 'status' => TaskStatus::InProgress,
                 'mode' => TaskMode::SemiAuto,
-                'current_agent' => 'dev',
+                'current_role' => 'dev',
                 'sort_order' => 2,
             ],
             [

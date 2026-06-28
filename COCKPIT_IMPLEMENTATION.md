@@ -2,29 +2,29 @@
 
 ## Résumé
 
-Implémentation complète d'une vue cockpit temps réel pour la pipeline multi-agents de Maestro, affichant en temps réel :
-- La progression de chaque agent (en attente, actif, validé, bloqué, etc.)
+Implémentation complète d'une vue cockpit temps réel pour la pipeline Maestro, affichant en temps réel :
+- La progression de chaque étape (en attente, actif, validé, bloqué, etc.)
 - Le statut des gates (en attente, approuvé, rejeté)
-- Le coût cumulé et par agent
+- Le coût cumulé et par rôle
 - Actions inline pour valider/rejeter les gates
 
 ## Fichiers Créés
 
 ### Services
 - **`app/Services/PipelineCockpitService.php`** — Assemble un snapshot cohérent de l'état courant de la pipeline pour une tâche donnée. Responsabilités :
-  - Construire une séquence de steps (agents + gates) dans l'ordre d'exécution
-  - Mapper les statuts agents aux états cockpit (pending, running, completed, blocked, waiting_gate, skipped)
-  - Calculer le coût cumulé et par agent
-  - Garder à l'œil : agents "stale" (running depuis > 30min) → marqués comme "blocked"
+  - Construire une séquence de steps (rôles + gates) dans l'ordre d'exécution
+  - Mapper les statuts des étapes aux états cockpit (pending, running, completed, blocked, waiting_gate, skipped)
+  - Calculer le coût cumulé et par rôle
+  - Garder à l'œil : étapes « stale » (running depuis > 30min) → marquées comme « blocked »
 
 ### Événements Broadcast
 - **`app/Events/GateStatusUpdated.php`** — Broadcast quand un gate change de statut (pending → approved/rejected)
-- **`app/Events/AgentCostRecorded.php`** — Broadcast quand le coût d'un agent est finalisé (après completion)
+- **`app/Events/PipelineStepCostRecorded.php`** — Broadcast quand le coût d'une étape est finalisé (après completion)
 
 ### Composants Livewire
 - **`app/Livewire/PipelineCockpit.php`** — Composant Livewire autonome du cockpit
   - `mount()` — Charge et vérifie l'autorisation utilisateur
-  - Listeners Echo pour broadcast events (AgentRunUpdated, GatePending, GateStatusUpdated, AgentCostRecorded)
+  - Listeners Echo pour broadcast events (PipelineStepUpdated, GatePending, GateStatusUpdated, PipelineStepCostRecorded)
   - Actions `approveGate()` et `rejectGate()` — validation inline des gates
   - Throttle @ 1s pour les refreshes (limite de charge)
 
@@ -34,7 +34,7 @@ Implémentation complète d'une vue cockpit temps réel pour la pipeline multi-a
   - Boucle sur `$snapshot['steps']` et appel à composants enfants
   - États finaux (done, error)
 
-- **`resources/views/components/maestro/cockpit-agent-step.blade.php`** — Composant d'étape agent
+- **`resources/views/components/maestro/cockpit-pipeline-step.blade.php`** — Composant d'étape agent
   - Badge statut coloré (pending, running, completed, blocked, waiting_gate, skipped)
   - Icones et animations (pulse sur "running")
   - Coût au survol
@@ -56,7 +56,7 @@ Implémentation complète d'une vue cockpit temps réel pour la pipeline multi-a
 
 ### Modifications Existantes
 - **`app/Services/GateReviewService.php`** — Dispatch `GateStatusUpdated` event après approbation/rejet
-- **`app/Jobs/RunAgentJob.php`** — Dispatch `AgentCostRecorded` event après enregistrement du coût
+- **`app/Jobs/RunPipelineStepJob.php`** — Dispatch `PipelineStepCostRecorded` event après enregistrement du coût
 - **`resources/views/livewire/task-pipeline.blade.php`** — Lien vers cockpit pleine page (icône 📊)
 
 ## Architecture Décisions
@@ -68,9 +68,9 @@ Implémentation complète d'une vue cockpit temps réel pour la pipeline multi-a
 ### 2. Events Broadcast pour Mise à Jour Temps Réel
 - **Canaux** : Private channel `task.{task_id}` (sécurisé, uniquement propriétaire tâche)
 - **Événements** :
-  - `AgentRunUpdated` (existant) — utilisé par TaskPipeline, aussi écouté par cockpit
+  - `PipelineStepUpdated` (existant) — utilisé par TaskPipeline, aussi écouté par cockpit
   - `GateStatusUpdated` (nouveau) — après approval/rejection
-  - `AgentCostRecorded` (nouveau) — après finalization de coût
+  - `PipelineStepCostRecorded` (nouveau) — après finalization de coût
 - **Fallback** : Mode polling @ 5s si `BROADCAST_CONNECTION=log` (développement local)
 
 ### 3. Throttle Livewire pour Prévenir Surcharge
@@ -106,10 +106,10 @@ Implémentation complète d'une vue cockpit temps réel pour la pipeline multi-a
 
 | Existant | Utilisé par Cockpit |
 |----------|---------------------|
-| `AgentRun`, `Gate`, `Task` modèles | Source de vérité pour snapshot |
+| `PipelineStep`, `Gate`, `Task` modèles | Source de vérité pour snapshot |
 | `OrchestratorService::getPipelineForTask()` | Séquence agents |
 | `GateReviewService::approve/reject()` | Logique gate |
-| `AgentRunUpdated` event | Trigger refresh cockpit |
+| `PipelineStepUpdated` event | Trigger refresh cockpit |
 | `GatePending` event | Trigger refresh cockpit |
 | `PipelineActivity` class | Détermine polling vs broadcast |
 | `TaskController` | Route cockpit |
@@ -119,7 +119,7 @@ Implémentation complète d'une vue cockpit temps réel pour la pipeline multi-a
 1. **Pipeline pending** (non démarrée) → "Pipeline not started" message
 2. **Agent timeout** (> 30min statut running) → marké "blocked"
 3. **Gate déjà approuvé** → try to approve → error dispatch
-4. **Ré-exécution agent après rejet** → nouvel AgentRun, coût ajouté
+4. **Ré-exécution agent après rejet** → nouvel PipelineStep, coût ajouté
 5. **Mode polling (BROADCAST_CONNECTION=log)** → `wire:poll.5s` activé
 6. **Budget dépassé** → lecture flag du module Coûts, warning inline
 

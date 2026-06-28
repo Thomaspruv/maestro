@@ -3,7 +3,7 @@
 namespace Tests\Unit;
 
 use App\Models\Project;
-use App\Services\AgentRunnerService;
+use App\Services\PipelineStepRunnerService;
 use App\Services\DiscoveryChatService;
 use PHPUnit\Framework\Attributes\Test;
 use Tests\TestCase;
@@ -25,7 +25,7 @@ class ProjectVisionContextTest extends TestCase
             ],
         ]);
 
-        $context = app(AgentRunnerService::class)->buildProjectContext($project);
+        $context = app(PipelineStepRunnerService::class)->buildProjectContext($project);
 
         $this->assertStringContainsString('### Vision produit', $context);
         $this->assertStringContainsString('Orchestrer des agents IA', $context);

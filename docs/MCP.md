@@ -103,9 +103,9 @@ Tu es connecté au serveur MCP Maestro. Workflow dev :
 5. Appelle get_task(task_id) et lis hermes.specs_preview (PM, UX, Tech Lead).
 6. Clone le dépôt GitHub indiqué (hermes.github.repo, branche hermes.github.branch).
 7. Implémente le code selon les specs.
-8. Appelle add_agent_output avec :
+8. Appelle record_step_output avec :
    - task_id
-   - agent_type: "dev"
+   - role: "dev"
    - output: résumé de ce qui a été fait (fichiers, décisions, commandes)
    - model: le modèle utilisé
    - cost: 0 si gratuit
@@ -199,10 +199,10 @@ La réponse utile est dans **`result.content[0].text`** (string JSON à parser).
 | `list_tasks` | Tâches d'un projet (`project_id`, filtre `status` optionnel) |
 | `list_hermes_tasks` | **Cron Hermes** — toutes les tâches dev en attente, tous projets |
 | `claim_hermes_task` | Réserve une tâche pour Hermes (anti-doublon cron) |
-| `get_task` | Détail complet + outputs agents + bloc `hermes` |
+| `get_task` | Détail complet + outputs des étapes + bloc `hermes` |
 | `create_task` | Crée une tâche dans le backlog |
 | `update_task_status` | Change le statut d'une tâche |
-| `add_agent_output` | Enregistre l'output d'un agent (ex. `dev` pour Hermes) |
+| `record_step_output` | Enregistre l'output d'une étape (ex. `dev` pour Hermes) |
 | `request_gate` | Demande une validation humaine |
 | `log_cost` | Enregistre un coût |
 
@@ -234,12 +234,12 @@ La réponse utile est dans **`result.content[0].text`** (string JSON à parser).
         "github_repo": "owner/repo",
         "github_branch": "main"
       },
-      "planning_agents_completed": ["pm", "ux", "tech_lead", "security"],
+      "planning_roles_completed": ["pm", "ux", "tech_lead", "security"],
       "instruction": "Implémenter le code selon les specs..."
     }
   ],
   "count": 1,
-  "polling_hint": "Traiter tasks[0] en priorité. Workflow : claim_hermes_task → implémenter → add_agent_output(dev)."
+  "polling_hint": "Traiter tasks[0] en priorité. Workflow : claim_hermes_task → implémenter → record_step_output(dev)."
 }
 ```
 
@@ -253,7 +253,7 @@ Tri : priorité (`critical` → `high` → `medium` → `low`), puis ancienneté
 { "task_id": 42 }
 ```
 
-**Effet :** passe la tâche en `in_progress` + `current_agent: hermes` (verrouillage atomique).
+**Effet :** passe la tâche en `in_progress` + `current_role: hermes` (verrouillage atomique).
 
 **Réponse :** contexte de travail + bloc `hermes` + `next_steps`.
 
@@ -278,7 +278,7 @@ Tri : priorité (`critical` → `high` → `medium` → `low`), puis ancienneté
       "repo": "owner/repo",
       "branch": "main"
     },
-    "planning_agents_completed": ["pm", "ux", "tech_lead", "security"],
+    "planning_roles_completed": ["pm", "ux", "tech_lead", "security"],
     "specs_preview": {
       "tech_lead": "Architecture et plan d'implémentation...",
       "ux": "Wireframes et parcours utilisateur...",
@@ -296,14 +296,16 @@ Tri : priorité (`critical` → `high` → `medium` → `low`), puis ancienneté
 
 **Priorités :** `low`, `medium`, `high`, `critical`
 
-### `add_agent_output` (fin du travail dev Hermes)
+### `record_step_output` (fin du travail dev Hermes)
 
-**Arguments requis :** `task_id`, `agent_type`, `output`, `model`
+> **Alias legacy :** `add_agent_output` reste accepté (paramètre `agent_type` mappé vers `role`) pour la transition Hermes.
+
+**Arguments requis :** `task_id`, `role`, `output`, `model`
 
 ```json
 {
   "task_id": 42,
-  "agent_type": "dev",
+  "role": "dev",
   "output": "Implémenté OAuth GitHub. Fichiers: AuthController.php, routes/web.php. Tests passent.",
   "model": "deepseek/deepseek-chat-v3-0324:free",
   "input_tokens": 0,
@@ -312,7 +314,7 @@ Tri : priorité (`critical` → `high` → `medium` → `low`), puis ancienneté
 }
 ```
 
-Après `add_agent_output` avec `agent_type: dev`, Maestro relance automatiquement la chaîne d'agents : **QA → PR Expert → Doc**.
+Après `record_step_output` avec `role: dev`, Maestro relance automatiquement la chaîne : **QA → PR Expert → Doc**.
 
 ### `update_task_status`
 
@@ -326,7 +328,7 @@ Après `add_agent_output` avec `agent_type: dev`, Maestro relance automatiquemen
 backlog
   → [Maestro : PM, UX, Tech Lead, Security]
   → waiting_hermes          ← Hermes intervient ici
-  → [Hermes : dev via add_agent_output]
+  → [Hermes : dev via record_step_output]
   → in_progress             ← Maestro : QA, PR Expert, Doc
   → done
 ```
@@ -334,7 +336,7 @@ backlog
 | Statut | Qui agit |
 |--------|----------|
 | `backlog` | Pas encore démarrée |
-| `in_progress` | Agents Maestro (PM, UX…) ou Hermes en cours de dev |
+| `in_progress` | Pipeline Maestro (PM, UX…) ou Hermes en cours de dev |
 | `waiting_hermes` | **Prête pour Hermes** — colonne Hermes du Kanban |
 | `in_review` | En revue |
 | `done` | Terminée |
@@ -376,7 +378,7 @@ Hermes surveille `waiting_hermes` via **`list_hermes_tasks`**, pas via `list_tas
 ### `list_hermes_tasks` retourne `count: 0`
 
 - Aucune tâche en statut `waiting_hermes`
-- Lancer d'abord les agents Maestro depuis le Kanban (« Démarrer les agents »)
+- Lancer d'abord le pipeline Maestro depuis le Kanban (« Démarrer »)
 - La tâche doit passer par PM / UX / Tech Lead / Security avant d'être prête pour Hermes
 
 ### Connexion OK mais projets vides

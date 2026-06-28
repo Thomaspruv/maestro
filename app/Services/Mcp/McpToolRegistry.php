@@ -4,7 +4,7 @@ namespace App\Services\Mcp;
 
 use App\Models\User;
 use App\Services\Mcp\Contracts\McpTool;
-use App\Services\Mcp\Tools\AddAgentOutputTool;
+use App\Services\Mcp\Tools\RecordStepOutputTool;
 use App\Services\Mcp\Tools\ClaimHermesTaskTool;
 use App\Services\Mcp\Tools\CreateTaskTool;
 use App\Services\Mcp\Tools\GetTaskTool;
@@ -29,7 +29,7 @@ class McpToolRegistry
         GetTaskTool $getTask,
         CreateTaskTool $createTask,
         UpdateTaskStatusTool $updateTaskStatus,
-        AddAgentOutputTool $addAgentOutput,
+        RecordStepOutputTool $recordStepOutput,
         ClaimHermesTaskTool $claimHermesTask,
         RequestGateTool $requestGate,
         LogCostTool $logCost,
@@ -41,11 +41,13 @@ class McpToolRegistry
             $getTask,
             $createTask,
             $updateTaskStatus,
-            $addAgentOutput,
+            $recordStepOutput,
             $claimHermesTask,
             $requestGate,
             $logCost,
         ])->keyBy(fn (McpTool $tool) => $tool->name())->all();
+
+        $this->tools['add_agent_output'] = new AddAgentOutputAliasTool($recordStepOutput);
     }
 
     /**

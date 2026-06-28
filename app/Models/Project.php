@@ -50,11 +50,11 @@ class Project extends Model
     }
 
     /**
-     * @return HasMany<ProjectAgent, $this>
+     * @return HasMany<ProjectRole, $this>
      */
-    public function agents(): HasMany
+    public function roles(): HasMany
     {
-        return $this->hasMany(ProjectAgent::class);
+        return $this->hasMany(ProjectRole::class);
     }
 
     /**

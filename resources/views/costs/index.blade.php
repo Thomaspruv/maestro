@@ -3,7 +3,7 @@
 @section('title', 'Coûts — '.$project->name)
 
 @section('content')
-    <div class="mb-5 grid grid-cols-3 gap-3">
+    <div class="mb-5 grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-3">
         @foreach($monthlyTotals->take(3) as $month)
             <x-maestro.stat-card
                 label="{{ \Carbon\Carbon::parse($month->month)->translatedFormat('F Y') }}"
@@ -12,7 +12,7 @@
         @endforeach
     </div>
 
-    <div class="maestro-card overflow-hidden">
+    <div class="maestro-card overflow-x-auto">
         <table class="w-full text-left text-xs">
             <thead class="border-b border-bg-overlay bg-bg-surface">
                 <tr>
@@ -38,9 +38,9 @@
                             @endif
                         </td>
                         <td class="px-4 py-2 text-text-muted">
-                            @if($log->agentRun)
-                                {{ config('maestro.agent_labels.'.$log->agentRun->agent_type.'.emoji', '🤖') }}
-                                {{ config('maestro.agent_labels.'.$log->agentRun->agent_type.'.name', $log->agentRun->agent_type) }}
+                            @if($log->pipelineStep)
+                                {{ config('maestro.role_labels.'.$log->pipelineStep->role.'.emoji', '🤖') }}
+                                {{ config('maestro.role_labels.'.$log->pipelineStep->role.'.name', $log->pipelineStep->role) }}
                             @else
                                 —
                             @endif

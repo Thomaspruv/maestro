@@ -1,5 +1,5 @@
 <div>
-    <div class="mb-5 grid grid-cols-4 gap-3">
+    <div class="mb-5 grid grid-cols-1 gap-3 sm:grid-cols-2 xl:grid-cols-4">
         <x-ui.metric-card label="Projets actifs" :value="$projects->count()" />
         <x-ui.metric-card label="Tâches totales" :value="$totalTasks" />
         <x-ui.metric-card label="En cours" :value="$tasksInProgress" subColor="info" />
@@ -11,7 +11,7 @@
         />
     </div>
 
-    <div class="grid grid-cols-2 gap-5">
+    <div class="grid grid-cols-1 gap-5 lg:grid-cols-2">
         <x-ui.card>
             <div class="mb-3 flex items-center justify-between">
                 <x-ui.heading-3>Projets</x-ui.heading-3>

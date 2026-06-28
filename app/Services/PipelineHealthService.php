@@ -2,10 +2,10 @@
 
 namespace App\Services;
 
-use App\Enums\AgentRunStatus;
+use App\Enums\PipelineStepStatus;
 use App\Enums\PipelineHealthState;
 use App\Enums\TaskStatus;
-use App\Models\AgentRun;
+use App\Models\PipelineStep;
 use App\Models\Project;
 use App\Models\Task;
 use App\Support\PipelineActivity;
@@ -24,7 +24,7 @@ class PipelineHealthService
      *     completed_count: int,
      *     total_steps: int,
      *     current_step: int,
-     *     current_agent: ?string,
+     *     current_role: ?string,
      *     tone: string,
      * }
      */
@@ -34,10 +34,10 @@ class PipelineHealthService
         $pipeline ??= $orchestrator->getPipelineForTask($task);
         $totalSteps = count($pipeline);
 
-        $task->loadMissing(['agentRuns', 'gates']);
+        $task->loadMissing(['pipelineSteps', 'gates']);
 
-        $completedCount = $task->agentRuns
-            ->whereIn('status', [AgentRunStatus::Completed, AgentRunStatus::Skipped])
+        $completedCount = $task->pipelineSteps
+            ->whereIn('status', [PipelineStepStatus::Completed, PipelineStepStatus::Skipped])
             ->count();
 
         $progress = $totalSteps > 0
@@ -45,12 +45,12 @@ class PipelineHealthService
             : 0;
 
         $pendingGate = $task->gates->where('status', 'pending')->first();
-        $pendingRun = $task->agentRuns->first(fn ($run) => $run->status === AgentRunStatus::Pending);
+        $pendingRun = $task->pipelineSteps->first(fn ($run) => $run->status === PipelineStepStatus::Pending);
         $runningRun = PipelineActivity::runningRun($task);
         $failedRun = PipelineActivity::blockingFailedRun($task);
-        $currentAgent = PipelineActivity::currentAgentType($task)
-            ?? $pendingRun?->agent_type
-            ?? $runningRun?->agent_type;
+        $currentAgent = PipelineActivity::currentPipelineRoleSlug($task)
+            ?? $pendingRun?->role
+            ?? $runningRun?->role;
 
         $currentStep = $currentAgent
             ? max(1, (int) array_search($currentAgent, $pipeline, true) + 1)
@@ -79,7 +79,7 @@ class PipelineHealthService
                 $completedCount,
                 $totalSteps,
                 $currentStep,
-                $failedRun?->agent_type ?? $currentAgent,
+                $failedRun?->role ?? $currentAgent,
                 'danger',
             );
         }
@@ -101,7 +101,7 @@ class PipelineHealthService
         $staleRunning = $this->findStaleRunningRun($task, $runningRun);
 
         if ($staleRunning) {
-            $label = config("maestro.agent_labels.{$staleRunning->agent_type}.name", $staleRunning->agent_type);
+            $label = config("maestro.role_labels.{$staleRunning->role}.name", $staleRunning->role);
 
             return $this->build(
                 PipelineHealthState::Failed,
@@ -111,18 +111,18 @@ class PipelineHealthService
                 $completedCount,
                 $totalSteps,
                 $currentStep,
-                $staleRunning->agent_type,
+                $staleRunning->role,
                 'danger',
             );
         }
 
         if ($runningRun && $currentAgent) {
-            $label = config("maestro.agent_labels.{$currentAgent}.name", $currentAgent);
+            $label = config("maestro.role_labels.{$currentAgent}.name", $currentAgent);
 
             return $this->build(
                 PipelineHealthState::Running,
                 "{$label} en cours",
-                PipelineActivity::agentMessage($currentAgent),
+                PipelineActivity::roleMessage($currentAgent),
                 $progress,
                 $completedCount,
                 $totalSteps,
@@ -133,7 +133,7 @@ class PipelineHealthService
         }
 
         if ($pendingRun && $currentAgent) {
-            $label = config("maestro.agent_labels.{$currentAgent}.name", $currentAgent);
+            $label = config("maestro.role_labels.{$currentAgent}.name", $currentAgent);
 
             if ($this->isWorkerBlocked($task)) {
                 return $this->build(
@@ -263,7 +263,7 @@ class PipelineHealthService
             return [
                 'tone' => 'danger',
                 'title' => 'Worker queue inactif',
-                'message' => 'Des jobs attendent un worker. Lancez `./start-dev` ou `php artisan queue:work database --queue=agents,dev-agent,default`.',
+                'message' => 'Des jobs attendent un worker. Lancez `./start-dev` ou `php artisan queue:work database --queue=agents,REMOVED_DEV_AGENT,default`.',
                 'show' => true,
                 'show_horizon_link' => false,
             ];
@@ -294,7 +294,7 @@ class PipelineHealthService
 
         $inProgressTasks = $project->tasks()
             ->where('status', TaskStatus::InProgress)
-            ->with('agentRuns')
+            ->with('pipelineSteps')
             ->get();
 
         foreach ($inProgressTasks as $task) {
@@ -318,8 +318,8 @@ class PipelineHealthService
             return false;
         }
 
-        $hasPendingRuns = $task->agentRuns->contains(
-            fn ($run) => $run->status === AgentRunStatus::Pending
+        $hasPendingRuns = $task->pipelineSteps->contains(
+            fn ($run) => $run->status === PipelineStepStatus::Pending
         );
 
         if (config('queue.default') === 'database') {
@@ -357,7 +357,7 @@ class PipelineHealthService
     private function hasActiveDatabaseWorker(): bool
     {
         return DB::table('jobs')
-            ->whereIn('queue', ['agents', 'dev-agent', 'default'])
+            ->whereIn('queue', ['roles', 'REMOVED_DEV_AGENT', 'default'])
             ->whereNotNull('reserved_at')
             ->where('reserved_at', '>=', now()->subSeconds(120)->timestamp)
             ->exists();
@@ -370,7 +370,7 @@ class PipelineHealthService
         }
 
         return (int) DB::table('jobs')
-            ->whereIn('queue', ['agents', 'dev-agent', 'default'])
+            ->whereIn('queue', ['roles', 'REMOVED_DEV_AGENT', 'default'])
             ->whereNull('reserved_at')
             ->count();
     }
@@ -386,13 +386,13 @@ class PipelineHealthService
 
     private function hasStalePendingRuns(Task $task): bool
     {
-        return $task->agentRuns->contains(
-            fn ($run) => $run->status === AgentRunStatus::Pending
+        return $task->pipelineSteps->contains(
+            fn ($run) => $run->status === PipelineStepStatus::Pending
                 && $run->created_at?->lt(now()->subSeconds(30))
         );
     }
 
-    private function findStaleRunningRun(Task $task, ?AgentRun $runningRun): ?AgentRun
+    private function findStaleRunningRun(Task $task, ?PipelineStep $runningRun): ?PipelineStep
     {
         if (! $runningRun?->started_at) {
             return null;
@@ -431,7 +431,7 @@ class PipelineHealthService
 
         if ($driver === 'database') {
             return (int) DB::table('jobs')
-                ->whereIn('queue', ['agents', 'dev-agent'])
+                ->whereIn('queue', ['roles', 'REMOVED_DEV_AGENT'])
                 ->count();
         }
 
@@ -444,7 +444,7 @@ class PipelineHealthService
             $prefix = config('horizon.prefix', '');
 
             return (int) Redis::connection($connection)->llen($prefix.'queues:agents')
-                + (int) Redis::connection($connection)->llen($prefix.'queues:dev-agent');
+                + (int) Redis::connection($connection)->llen($prefix.'queues:REMOVED_DEV_AGENT');
         } catch (\Throwable) {
             return 0;
         }
@@ -459,7 +459,7 @@ class PipelineHealthService
      *     completed_count: int,
      *     total_steps: int,
      *     current_step: int,
-     *     current_agent: ?string,
+     *     current_role: ?string,
      *     tone: string,
      * }
      */
@@ -482,7 +482,7 @@ class PipelineHealthService
             'completed_count' => $completedCount,
             'total_steps' => $totalSteps,
             'current_step' => $currentStep,
-            'current_agent' => $currentAgent,
+            'current_role' => $currentAgent,
             'tone' => $tone,
         ];
     }

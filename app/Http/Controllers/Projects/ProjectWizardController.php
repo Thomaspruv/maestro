@@ -8,7 +8,7 @@ use App\Http\Requests\Projects\StoreWizardStep2Request;
 use App\Http\Requests\Projects\StoreWizardStep3Request;
 use App\Http\Requests\Projects\StoreWizardStep4Request;
 use App\Models\Project;
-use App\Models\ProjectAgent;
+use App\Models\ProjectRole;
 use App\Models\ProjectWizardDraft;
 use App\Services\GitHubContextReader;
 use Illuminate\Http\JsonResponse;
@@ -94,10 +94,10 @@ class ProjectWizardController extends Controller
             'model_config' => $data['step4']['models'],
         ]);
 
-        foreach ($data['step4']['agents'] as $type => $config) {
-            ProjectAgent::create([
+        foreach ($data['step4']['roles'] as $type => $config) {
+            ProjectRole::create([
                 'project_id' => $project->id,
-                'agent_type' => $type,
+                'role' => $type,
                 'is_active' => $config['is_active'] ?? true,
                 'model' => $config['model'],
                 'system_prompt' => $config['system_prompt'],

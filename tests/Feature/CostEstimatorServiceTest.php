@@ -25,9 +25,9 @@ class CostEstimatorServiceTest extends TestCase
 
         $estimate = app(CostEstimatorService::class)->estimate($task);
 
-        $this->assertArrayHasKey('agents', $estimate);
+        $this->assertArrayHasKey('roles', $estimate);
         $this->assertArrayHasKey('total_low', $estimate);
         $this->assertArrayHasKey('total_high', $estimate);
-        $this->assertNotEmpty($estimate['agents']);
+        $this->assertNotEmpty($estimate['roles']);
     }
 }

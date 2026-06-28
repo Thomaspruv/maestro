@@ -5,7 +5,7 @@ namespace App\Services;
 use App\Enums\GateStatus;
 use App\Enums\TaskStatus;
 use App\Events\GateStatusUpdated;
-use App\Jobs\RunAgentJob;
+use App\Jobs\RunPipelineStepJob;
 use App\Models\Gate;
 
 class GateReviewService
@@ -17,8 +17,8 @@ class GateReviewService
             'reviewed_at' => now(),
         ]);
 
-        if ($editedOutput !== null && $editedOutput !== '' && $gate->agentRun) {
-            $gate->agentRun->update(['edited_output' => $editedOutput]);
+        if ($editedOutput !== null && $editedOutput !== '' && $gate->pipelineStep) {
+            $gate->pipelineStep->update(['edited_output' => $editedOutput]);
         }
 
         broadcast(new GateStatusUpdated($gate->fresh()));
@@ -44,9 +44,9 @@ class GateReviewService
         ]);
 
         broadcast(new GateStatusUpdated($gate->fresh()));
-        RunAgentJob::dispatch(
+        RunPipelineStepJob::dispatch(
             $gate->task,
-            $gate->agentRun->agent_type,
+            $gate->pipelineStep->role,
             feedback: $feedback,
         );
     }

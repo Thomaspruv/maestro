@@ -16,7 +16,7 @@ class Gate extends Model
 
     protected $fillable = [
         'task_id',
-        'agent_run_id',
+        'pipeline_step_id',
         'gate_type',
         'status',
         'feedback',
@@ -33,11 +33,11 @@ class Gate extends Model
     }
 
     /**
-     * @return BelongsTo<AgentRun, $this>
+     * @return BelongsTo<PipelineStep, $this>
      */
-    public function agentRun(): BelongsTo
+    public function pipelineStep(): BelongsTo
     {
-        return $this->belongsTo(AgentRun::class);
+        return $this->belongsTo(PipelineStep::class);
     }
 
     protected function casts(): array

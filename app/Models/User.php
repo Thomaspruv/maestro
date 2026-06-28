@@ -37,11 +37,11 @@ class User extends Authenticatable
     }
 
     /**
-     * @return HasMany<UserAgent, $this>
+     * @return HasMany<PipelineRole, $this>
      */
-    public function agents(): HasMany
+    public function pipelineRoles(): HasMany
     {
-        return $this->hasMany(UserAgent::class);
+        return $this->hasMany(PipelineRole::class);
     }
 
     /**

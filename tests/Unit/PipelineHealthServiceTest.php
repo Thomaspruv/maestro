@@ -2,10 +2,10 @@
 
 namespace Tests\Unit;
 
-use App\Enums\AgentRunStatus;
+use App\Enums\PipelineStepStatus;
 use App\Enums\PipelineHealthState;
 use App\Enums\TaskStatus;
-use App\Models\AgentRun;
+use App\Models\PipelineStep;
 use App\Models\Project;
 use App\Models\Task;
 use App\Services\PipelineHealthService;
@@ -22,7 +22,7 @@ class PipelineHealthServiceTest extends TestCase
     public function not_started_for_backlog_task(): void
     {
         $task = new Task(['status' => TaskStatus::Backlog]);
-        $task->setRelation('agentRuns', collect());
+        $task->setRelation('pipelineSteps', collect());
         $task->setRelation('gates', collect());
 
         $health = app(PipelineHealthService::class)->forTask($task, ['pm', 'dev']);
@@ -35,10 +35,10 @@ class PipelineHealthServiceTest extends TestCase
     public function queued_when_pending_agent_run_exists(): void
     {
         $task = new Task(['status' => TaskStatus::InProgress]);
-        $task->setRelation('agentRuns', collect([
-            new AgentRun([
-                'agent_type' => 'pm',
-                'status' => AgentRunStatus::Pending,
+        $task->setRelation('pipelineSteps', collect([
+            new PipelineStep([
+                'role' => 'pm',
+                'status' => PipelineStepStatus::Pending,
                 'created_at' => now(),
             ]),
         ]));
@@ -55,11 +55,11 @@ class PipelineHealthServiceTest extends TestCase
     #[Test]
     public function running_when_agent_run_is_active(): void
     {
-        $task = new Task(['status' => TaskStatus::InProgress, 'current_agent' => 'pm']);
-        $task->setRelation('agentRuns', collect([
-            new AgentRun([
-                'agent_type' => 'pm',
-                'status' => AgentRunStatus::Running,
+        $task = new Task(['status' => TaskStatus::InProgress, 'current_role' => 'pm']);
+        $task->setRelation('pipelineSteps', collect([
+            new PipelineStep([
+                'role' => 'pm',
+                'status' => PipelineStepStatus::Running,
                 'started_at' => now(),
             ]),
         ]));
@@ -76,13 +76,13 @@ class PipelineHealthServiceTest extends TestCase
         config(['queue.default' => 'sync']);
 
         $task = Task::factory()->create(['status' => TaskStatus::InProgress]);
-        AgentRun::factory()->create([
+        PipelineStep::factory()->create([
             'task_id' => $task->id,
-            'agent_type' => 'pm',
-            'status' => AgentRunStatus::Pending,
+            'role' => 'pm',
+            'status' => PipelineStepStatus::Pending,
         ]);
 
-        $health = app(PipelineHealthService::class)->forTask($task->fresh(['agentRuns', 'gates']), ['pm']);
+        $health = app(PipelineHealthService::class)->forTask($task->fresh(['pipelineSteps', 'gates']), ['pm']);
 
         $this->assertNotSame(PipelineHealthState::BlockedWorker, $health['state']);
     }
@@ -92,16 +92,16 @@ class PipelineHealthServiceTest extends TestCase
     {
         config(['queue.default' => 'database']);
 
-        $task = Task::factory()->create(['status' => TaskStatus::InProgress, 'current_agent' => 'ux']);
-        AgentRun::factory()->create([
+        $task = Task::factory()->create(['status' => TaskStatus::InProgress, 'current_role' => 'ux']);
+        PipelineStep::factory()->create([
             'task_id' => $task->id,
-            'agent_type' => 'ux',
-            'status' => AgentRunStatus::Pending,
+            'role' => 'ux',
+            'status' => PipelineStepStatus::Pending,
             'created_at' => now()->subMinute(),
         ]);
 
         DB::table('jobs')->insert([
-            'queue' => 'agents',
+            'queue' => 'roles',
             'payload' => json_encode(['job' => 'test', 'data' => []]),
             'attempts' => 0,
             'reserved_at' => null,
@@ -110,7 +110,7 @@ class PipelineHealthServiceTest extends TestCase
         ]);
 
         $health = app(PipelineHealthService::class)->forTask(
-            $task->fresh(['agentRuns', 'gates']),
+            $task->fresh(['pipelineSteps', 'gates']),
             ['pm', 'ux', 'dev'],
         );
 
@@ -123,43 +123,43 @@ class PipelineHealthServiceTest extends TestCase
     {
         $task = Task::factory()->create([
             'status' => TaskStatus::InProgress,
-            'current_agent' => 'dev',
+            'current_role' => 'dev',
         ]);
 
-        AgentRun::factory()->create([
+        PipelineStep::factory()->create([
             'task_id' => $task->id,
-            'agent_type' => 'tech_lead',
-            'status' => AgentRunStatus::Failed,
+            'role' => 'tech_lead',
+            'status' => PipelineStepStatus::Failed,
             'error_message' => 'cURL error 28: Operation timed out after 60004 milliseconds',
         ]);
 
-        AgentRun::factory()->create([
+        PipelineStep::factory()->create([
             'task_id' => $task->id,
-            'agent_type' => 'tech_lead',
-            'status' => AgentRunStatus::Completed,
+            'role' => 'tech_lead',
+            'status' => PipelineStepStatus::Completed,
         ]);
 
-        AgentRun::factory()->create([
+        PipelineStep::factory()->create([
             'task_id' => $task->id,
-            'agent_type' => 'dev',
-            'status' => AgentRunStatus::Failed,
+            'role' => 'dev',
+            'status' => PipelineStepStatus::Failed,
             'error_message' => 'git pull failed',
         ]);
 
-        AgentRun::factory()->create([
+        PipelineStep::factory()->create([
             'task_id' => $task->id,
-            'agent_type' => 'dev',
-            'status' => AgentRunStatus::Running,
+            'role' => 'dev',
+            'status' => PipelineStepStatus::Running,
             'started_at' => now(),
         ]);
 
         $health = app(PipelineHealthService::class)->forTask(
-            $task->fresh(['agentRuns', 'gates']),
+            $task->fresh(['pipelineSteps', 'gates']),
             ['pm', 'ux', 'tech_lead', 'dev'],
         );
 
         $this->assertSame(PipelineHealthState::Running, $health['state']);
-        $this->assertSame('dev', $health['current_agent']);
+        $this->assertSame('dev', $health['current_role']);
     }
 
     #[Test]
@@ -167,9 +167,9 @@ class PipelineHealthServiceTest extends TestCase
     {
         $task = new Task([
             'status' => TaskStatus::WaitingHermes,
-            'current_agent' => 'hermes',
+            'current_role' => 'hermes',
         ]);
-        $task->setRelation('agentRuns', collect());
+        $task->setRelation('pipelineSteps', collect());
         $task->setRelation('gates', collect());
 
         $health = app(PipelineHealthService::class)->forTask($task, ['pm', 'ux', 'tech_lead', 'security', 'qa']);
@@ -199,7 +199,7 @@ class PipelineHealthServiceTest extends TestCase
         $project = Project::factory()->create();
 
         DB::table('jobs')->insert([
-            'queue' => 'agents',
+            'queue' => 'roles',
             'payload' => json_encode(['job' => 'test', 'data' => []]),
             'attempts' => 0,
             'reserved_at' => null,
@@ -223,7 +223,7 @@ class PipelineHealthServiceTest extends TestCase
         $project = Project::factory()->create();
 
         DB::table('jobs')->insert([
-            'queue' => 'agents',
+            'queue' => 'roles',
             'payload' => json_encode(['job' => 'test', 'data' => []]),
             'attempts' => 1,
             'reserved_at' => now()->timestamp,
@@ -232,7 +232,7 @@ class PipelineHealthServiceTest extends TestCase
         ]);
 
         DB::table('jobs')->insert([
-            'queue' => 'agents',
+            'queue' => 'roles',
             'payload' => json_encode(['job' => 'test2', 'data' => []]),
             'attempts' => 0,
             'reserved_at' => null,
@@ -253,7 +253,7 @@ class PipelineHealthServiceTest extends TestCase
         $task = Task::factory()->create(['status' => TaskStatus::InProgress]);
 
         DB::table('jobs')->insert([
-            'queue' => 'agents',
+            'queue' => 'roles',
             'payload' => json_encode(['job' => 'test', 'data' => []]),
             'attempts' => 1,
             'reserved_at' => now()->timestamp,
@@ -261,14 +261,14 @@ class PipelineHealthServiceTest extends TestCase
             'created_at' => now()->timestamp,
         ]);
 
-        AgentRun::factory()->create([
+        PipelineStep::factory()->create([
             'task_id' => $task->id,
-            'agent_type' => 'pm',
-            'status' => AgentRunStatus::Running,
+            'role' => 'pm',
+            'status' => PipelineStepStatus::Running,
             'started_at' => now(),
         ]);
 
-        $health = app(PipelineHealthService::class)->forTask($task->fresh(['agentRuns', 'gates']), ['pm', 'dev']);
+        $health = app(PipelineHealthService::class)->forTask($task->fresh(['pipelineSteps', 'gates']), ['pm', 'dev']);
 
         $this->assertSame(PipelineHealthState::Running, $health['state']);
     }
@@ -284,10 +284,10 @@ class PipelineHealthServiceTest extends TestCase
             'status' => TaskStatus::InProgress,
         ]);
 
-        AgentRun::factory()->create([
+        PipelineStep::factory()->create([
             'task_id' => $task->id,
-            'agent_type' => 'dev',
-            'status' => AgentRunStatus::Running,
+            'role' => 'dev',
+            'status' => PipelineStepStatus::Running,
             'started_at' => now(),
         ]);
 

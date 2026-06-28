@@ -49,7 +49,7 @@ class ListTasksTool implements McpTool
 
         $tasks = $query->get([
             'id', 'uuid', 'title', 'type', 'priority', 'status', 'mode',
-            'current_agent', 'module', 'estimated_cost', 'actual_cost',
+            'current_role', 'module', 'estimated_cost', 'actual_cost',
         ]);
 
         return [
@@ -61,7 +61,7 @@ class ListTasksTool implements McpTool
                 'priority' => $task->priority->value,
                 'status' => $task->status->value,
                 'mode' => $task->mode->value,
-                'current_agent' => $task->current_agent,
+                'current_role' => $task->current_role,
                 'module' => $task->module,
                 'estimated_cost' => (float) $task->estimated_cost,
                 'actual_cost' => (float) $task->actual_cost,

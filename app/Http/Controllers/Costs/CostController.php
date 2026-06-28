@@ -16,7 +16,7 @@ class CostController extends Controller
 
         $logs = CostLog::query()
             ->where('project_id', $project->id)
-            ->with(['task', 'agentRun'])
+            ->with(['task', 'pipelineStep'])
             ->latest('created_at')
             ->paginate(50);
 
@@ -36,7 +36,7 @@ class CostController extends Controller
 
         $logs = CostLog::query()
             ->where('user_id', $user->id)
-            ->with(['project', 'task', 'agentRun'])
+            ->with(['project', 'task', 'pipelineStep'])
             ->latest('created_at')
             ->paginate(50);
 

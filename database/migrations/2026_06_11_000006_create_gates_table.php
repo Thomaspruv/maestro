@@ -14,7 +14,7 @@ return new class extends Migration
         Schema::create('gates', function (Blueprint $table) {
             $table->id();
             $table->foreignId('task_id')->constrained()->cascadeOnDelete();
-            $table->foreignId('agent_run_id')->constrained()->cascadeOnDelete();
+            $table->foreignId('pipeline_step_id')->constrained()->cascadeOnDelete();
             $table->string('gate_type');
             $table->string('status');
             $table->text('feedback')->nullable();

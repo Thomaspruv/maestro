@@ -34,7 +34,7 @@ class TaskFactory extends Factory
             'priority' => TaskPriority::Medium,
             'status' => TaskStatus::Backlog,
             'mode' => TaskMode::Manual,
-            'current_agent' => null,
+            'current_role' => null,
             'github_branch' => null,
             'github_pr_url' => null,
             'github_pr_number' => null,

@@ -2,9 +2,9 @@
 
 namespace App\Services\Mcp\Tools;
 
-use App\Enums\AgentRunStatus;
+use App\Enums\PipelineStepStatus;
 use App\Models\User;
-use App\Services\AgentOutputCondenser;
+use App\Services\PipelineOutputCondenser;
 use App\Services\Mcp\Contracts\McpTool;
 use App\Services\Mcp\HermesTaskPresenter;
 use App\Services\Mcp\McpToolException;
@@ -15,7 +15,7 @@ class GetTaskTool implements McpTool
     use ResolvesMcpResources;
 
     public function __construct(
-        private readonly AgentOutputCondenser $condenser,
+        private readonly PipelineOutputCondenser $condenser,
         private readonly HermesTaskPresenter $hermesPresenter,
     ) {}
 
@@ -47,13 +47,13 @@ class GetTaskTool implements McpTool
         }
 
         $task = $this->findUserTask($user, (int) $arguments['task_id']);
-        $task->load(['project:id,name,uuid,github_repo,github_branch', 'agentRuns' => fn ($q) => $q->orderBy('id')]);
+        $task->load(['project:id,name,uuid,github_repo,github_branch', 'pipelineSteps' => fn ($q) => $q->orderBy('id')]);
 
-        $agentRuns = $task->agentRuns
-            ->whereIn('status', [AgentRunStatus::Completed, AgentRunStatus::Skipped])
+        $pipelineSteps = $task->pipelineSteps
+            ->whereIn('status', [PipelineStepStatus::Completed, PipelineStepStatus::Skipped])
             ->map(fn ($run) => [
                 'id' => $run->id,
-                'agent_type' => $run->agent_type,
+                'role' => $run->role,
                 'status' => $run->status->value,
                 'model' => $run->model,
                 'output' => $this->condenser->condense($run->edited_output ?? $run->output ?? ''),
@@ -76,13 +76,13 @@ class GetTaskTool implements McpTool
                 'priority' => $task->priority->value,
                 'status' => $task->status->value,
                 'mode' => $task->mode->value,
-                'current_agent' => $task->current_agent,
+                'current_role' => $task->current_role,
                 'github_branch' => $task->github_branch,
                 'github_pr_url' => $task->github_pr_url,
                 'estimated_cost' => (float) $task->estimated_cost,
                 'actual_cost' => (float) $task->actual_cost,
             ],
-            'agent_runs' => $agentRuns,
+            'pipeline_steps' => $pipelineSteps,
             'hermes' => $this->hermesPresenter->detailBlock($task),
         ];
     }

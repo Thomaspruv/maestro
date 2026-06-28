@@ -57,19 +57,19 @@ return [
         'chore' => 'full_auto',
     ],
 
-    'agent_labels' => [
-        'pm' => ['emoji' => '🧠', 'name' => 'PM Agent'],
-        'ux' => ['emoji' => '🎨', 'name' => 'UX Agent'],
+    'role_labels' => [
+        'pm' => ['emoji' => '🧠', 'name' => 'Product Manager'],
+        'ux' => ['emoji' => '🎨', 'name' => 'UX Designer'],
         'tech_lead' => ['emoji' => '⚙️', 'name' => 'Tech Lead'],
         'security' => ['emoji' => '🔒', 'name' => 'Security'],
-        'dev' => ['emoji' => '💻', 'name' => 'Dev Agent'],
-        'qa' => ['emoji' => '🧪', 'name' => 'QA Agent'],
+        'dev' => ['emoji' => '💻', 'name' => 'Hermes'],
+        'qa' => ['emoji' => '🧪', 'name' => 'QA'],
         'pr_expert' => ['emoji' => '📝', 'name' => 'PR Expert'],
-        'doc' => ['emoji' => '📚', 'name' => 'Doc Agent'],
+        'doc' => ['emoji' => '📚', 'name' => 'Documentation'],
         'discovery' => ['emoji' => '🤖', 'name' => 'Discovery IA'],
     ],
 
-    'builtin_agents' => [
+    'builtin_roles' => [
         'pm' => ['runner' => 'api'],
         'ux' => ['runner' => 'api'],
         'tech_lead' => ['runner' => 'api'],
@@ -85,7 +85,7 @@ return [
         'https://www.producthunt.com/feed',
     ],
 
-    'agent_max_tokens' => [
+    'role_max_tokens' => [
         'pm' => 8192,
         'ux' => 8192,
         'tech_lead' => 8192,
@@ -105,15 +105,15 @@ return [
     | Troncature des outputs agents précédents dans les prompts API (~2000 tokens).
     | Réduit latence, timeouts et coût input — même logique que DevPromptBuilder.
     */
-    'agent_output_max_chars' => (int) env('MAESTRO_AGENT_OUTPUT_MAX_CHARS', 8000),
+    'pipeline_output_max_chars' => (int) env('MAESTRO_PIPELINE_OUTPUT_MAX_CHARS', 8000),
 
     /*
     | Retry automatique sur erreurs transitoires API (timeout, surcharge).
     | 2 essais max = 1 retry gratuit en cas de pic réseau Anthropic.
     */
-    'agent_job_tries' => (int) env('MAESTRO_AGENT_JOB_TRIES', 2),
+    'pipeline_step_job_tries' => (int) env('MAESTRO_PIPELINE_STEP_JOB_TRIES', 2),
 
-    'agent_job_retry_delay' => (int) env('MAESTRO_AGENT_JOB_RETRY_DELAY', 15),
+    'pipeline_step_job_retry_delay' => (int) env('MAESTRO_PIPELINE_STEP_JOB_RETRY_DELAY', 15),
 
     'queue_worker_timeout' => (int) env('MAESTRO_QUEUE_WORKER_TIMEOUT', 960),
 

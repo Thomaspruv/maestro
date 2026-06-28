@@ -2,17 +2,17 @@
 
 namespace App\Services;
 
-use App\Enums\AgentRunStatus;
+use App\Enums\PipelineStepStatus;
 use App\Enums\GateStatus;
 use App\Enums\GateType;
 use App\Enums\TaskMode;
 use App\Enums\TaskStatus;
-use App\Events\AgentRunUpdated;
+use App\Events\PipelineStepUpdated;
 use App\Events\GatePending;
 use App\Events\TaskCompleted;
-use App\Jobs\ParallelAgentGroupJob;
-use App\Jobs\RunAgentJob;
-use App\Models\AgentRun;
+use App\Jobs\ParallelPipelineStepGroupJob;
+use App\Jobs\RunPipelineStepJob;
+use App\Models\PipelineStep;
 use App\Models\Gate;
 use App\Models\Task;
 
@@ -22,14 +22,14 @@ class OrchestratorService
 
     public function advance(Task $task, bool $afterGateApproval = false): void
     {
-        $task->loadMissing('project.agents');
+        $task->loadMissing('project.roles');
 
-        $nextAgent = $this->resolveNextAgent($task);
+        $nextAgent = $this->resolveNextRole($task);
 
         if ($nextAgent === null) {
             $task->update([
                 'status' => TaskStatus::Done,
-                'current_agent' => null,
+                'current_role' => null,
             ]);
             broadcast(new TaskCompleted($task->fresh()));
 
@@ -41,12 +41,12 @@ class OrchestratorService
                 return;
             }
 
-            $lastRun = $task->agentRuns()->latest()->first();
+            $lastRun = $task->pipelineSteps()->latest()->first();
 
             if ($lastRun) {
                 $gate = Gate::create([
                     'task_id' => $task->id,
-                    'agent_run_id' => $lastRun->id,
+                    'pipeline_step_id' => $lastRun->id,
                     'gate_type' => $this->resolveGateType($nextAgent),
                     'status' => GateStatus::Pending,
                 ]);
@@ -67,39 +67,39 @@ class OrchestratorService
         if ($this->requiresHermesHandoff($task, $nextAgent)) {
             $task->update([
                 'status' => TaskStatus::WaitingHermes,
-                'current_agent' => 'hermes',
+                'current_role' => 'hermes',
             ]);
 
             return;
         }
 
-        $this->dispatchAgentRun($task, $nextAgent);
+        $this->dispatchPipelineStep($task, $nextAgent);
     }
 
-    public function dispatchAgentRun(Task $task, string $agentType, bool $skipAdvance = false): AgentRun
+    public function dispatchPipelineStep(Task $task, string $agentType, bool $skipAdvance = false): PipelineStep
     {
-        $run = AgentRun::create([
+        $run = PipelineStep::create([
             'task_id' => $task->id,
-            'agent_type' => $agentType,
-            'status' => AgentRunStatus::Pending,
+            'role' => $agentType,
+            'status' => PipelineStepStatus::Pending,
             'input' => [],
-            'model' => $this->resolveModelForAgent($task, $agentType),
+            'model' => $this->resolveModelForRole($task, $agentType),
             'attempt' => 1,
         ]);
 
         $task->update([
             'status' => TaskStatus::InProgress,
-            'current_agent' => $agentType,
+            'current_role' => $agentType,
         ]);
 
-        broadcast(new AgentRunUpdated($run->fresh()));
+        broadcast(new PipelineStepUpdated($run->fresh()));
 
-        $queue = AgentCapabilities::queue($agentType);
-        RunAgentJob::dispatch(
+        $queue = PipelineRoleCapabilities::queue($agentType);
+        RunPipelineStepJob::dispatch(
             $task,
             $agentType,
             skipAdvance: $skipAdvance,
-            agentRunId: $run->id,
+            pipelineStepId: $run->id,
         )->onQueue($queue);
 
         return $run;
@@ -113,41 +113,41 @@ class OrchestratorService
         $runIds = [];
 
         foreach ($agentTypes as $agentType) {
-            $run = AgentRun::create([
+            $run = PipelineStep::create([
                 'task_id' => $task->id,
-                'agent_type' => $agentType,
-                'status' => AgentRunStatus::Pending,
+                'role' => $agentType,
+                'status' => PipelineStepStatus::Pending,
                 'input' => [],
-                'model' => $this->resolveModelForAgent($task, $agentType),
+                'model' => $this->resolveModelForRole($task, $agentType),
                 'attempt' => 1,
             ]);
 
             $runIds[$agentType] = $run->id;
-            broadcast(new AgentRunUpdated($run->fresh()));
+            broadcast(new PipelineStepUpdated($run->fresh()));
         }
 
         $task->update([
             'status' => TaskStatus::InProgress,
-            'current_agent' => $agentTypes[0],
+            'current_role' => $agentTypes[0],
         ]);
 
-        ParallelAgentGroupJob::dispatch($task, $agentTypes, $runIds);
+        ParallelPipelineStepGroupJob::dispatch($task, $agentTypes, $runIds);
     }
 
-    private function resolveModelForAgent(Task $task, string $agentType): string
+    private function resolveModelForRole(Task $task, string $agentType): string
     {
         $task->loadMissing('project');
 
-        return AgentCapabilities::resolveModel($agentType, $task->project);
+        return PipelineRoleCapabilities::resolveModel($agentType, $task->project);
     }
 
     /**
      * @return string|array<int, string>|null
      */
-    public function resolveNextAgent(Task $task): string|array|null
+    public function resolveNextRole(Task $task): string|array|null
     {
         $pipeline = $this->getPipelineForTask($task);
-        $completed = $this->completedAgentTypes($task);
+        $completed = $this->completedPipelineRoleSlugs($task);
 
         $index = 0;
 
@@ -160,8 +160,8 @@ class OrchestratorService
                 continue;
             }
 
-            if (! $this->isAgentActive($task, $agent)) {
-                $this->markAgentSkipped($task, $agent);
+            if (! $this->isRoleActive($task, $agent)) {
+                $this->markRoleSkipped($task, $agent);
                 $completed[] = $agent;
                 $index++;
 
@@ -247,9 +247,9 @@ class OrchestratorService
             return false;
         }
 
-        return ! $task->agentRuns()
-            ->where('agent_type', 'dev')
-            ->where('status', AgentRunStatus::Completed)
+        return ! $task->pipelineSteps()
+            ->where('role', 'dev')
+            ->where('status', PipelineStepStatus::Completed)
             ->exists();
     }
 
@@ -266,32 +266,32 @@ class OrchestratorService
     /**
      * @return array<int, string>
      */
-    private function completedAgentTypes(Task $task): array
+    private function completedPipelineRoleSlugs(Task $task): array
     {
-        return $task->agentRuns()
-            ->whereIn('status', [AgentRunStatus::Completed, AgentRunStatus::Skipped])
-            ->pluck('agent_type')
+        return $task->pipelineSteps()
+            ->whereIn('status', [PipelineStepStatus::Completed, PipelineStepStatus::Skipped])
+            ->pluck('role')
             ->all();
     }
 
-    private function isAgentActive(Task $task, string $agentType): bool
+    private function isRoleActive(Task $task, string $agentType): bool
     {
-        $projectAgent = $task->project->agents
-            ->first(fn ($agent) => $agent->agent_type === $agentType);
+        $projectRole = $task->project->roles
+            ->first(fn ($agent) => $agent->role === $agentType);
 
-        if ($projectAgent === null) {
+        if ($projectRole === null) {
             return true;
         }
 
-        return $projectAgent->is_active;
+        return $projectRole->is_active;
     }
 
-    private function markAgentSkipped(Task $task, string $agentType): void
+    private function markRoleSkipped(Task $task, string $agentType): void
     {
-        AgentRun::create([
+        PipelineStep::create([
             'task_id' => $task->id,
-            'agent_type' => $agentType,
-            'status' => AgentRunStatus::Skipped,
+            'role' => $agentType,
+            'status' => PipelineStepStatus::Skipped,
             'model' => config('maestro.default_models.'.$agentType, 'claude-haiku-4-5'),
             'input' => [],
             'completed_at' => now(),
@@ -335,8 +335,8 @@ class OrchestratorService
                 continue;
             }
 
-            if (! $this->isAgentActive($task, $agent)) {
-                $this->markAgentSkipped($task, $agent);
+            if (! $this->isRoleActive($task, $agent)) {
+                $this->markRoleSkipped($task, $agent);
 
                 continue;
             }

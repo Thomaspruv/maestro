@@ -59,7 +59,7 @@ class ClaimHermesTaskTool implements McpTool
                 throw McpToolException::notFound('task');
             }
 
-            if (! $this->presenter->isAwaitingHermes($task->load('agentRuns'))) {
+            if (! $this->presenter->isAwaitingHermes($task->load('pipelineSteps'))) {
                 throw McpToolException::invalid(
                     'Cette tâche n\'est pas disponible pour Hermes (statut ou run dev déjà présent).',
                 );
@@ -67,10 +67,10 @@ class ClaimHermesTaskTool implements McpTool
 
             $task->update([
                 'status' => TaskStatus::InProgress,
-                'current_agent' => 'hermes',
+                'current_role' => 'hermes',
             ]);
 
-            return $task->fresh(['project:id,name,uuid,github_repo,github_branch', 'agentRuns']);
+            return $task->fresh(['project:id,name,uuid,github_repo,github_branch', 'pipelineSteps']);
         });
 
         return [
@@ -79,7 +79,7 @@ class ClaimHermesTaskTool implements McpTool
             'hermes' => $this->presenter->detailBlock($task),
             'next_steps' => [
                 'Implémenter le code dans le dépôt GitHub indiqué.',
-                'Appeler add_agent_output avec agent_type=dev et un résumé du travail effectué.',
+                'Appeler record_step_output avec role=dev et un résumé du travail effectué.',
                 'En cas d\'échec, remettre la tâche en waiting_hermes via update_task_status.',
             ],
         ];

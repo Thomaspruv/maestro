@@ -75,7 +75,7 @@
                 data-task-type="{{ $selectedTaskType }}"
             >
                 @foreach($pipeline[$selectedTaskType] ?? [] as $agent)
-                    @php $label = config("maestro.agent_labels.{$agent}", []); @endphp
+                    @php $label = config("maestro.role_labels.{$agent}", []); @endphp
                     <li class="flex cursor-grab items-center gap-2 rounded-lg bg-maestro-surface-2 px-3 py-2 text-[13px]" data-agent="{{ $agent }}">
                         <span>{{ $label['emoji'] ?? '🤖' }}</span>
                         <span>{{ $label['name'] ?? $agent }}</span>
@@ -83,7 +83,7 @@
                 @endforeach
             </ul>
 
-            <div class="mt-4 grid grid-cols-3 gap-3">
+            <div class="mt-4 grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-3">
                 <label class="flex items-center gap-2 text-xs">
                     <input type="checkbox" wire:model="gates.{{ $selectedTaskType }}.gate_specs" class="rounded border-bg-overlay">
                     Gate specs
@@ -124,16 +124,16 @@
         </x-ui.card>
     @endif
 
-    {{-- Étape 4 : Agents --}}
+    {{-- Étape 4 : Rôles pipeline --}}
     @if($step === 4)
         <div class="space-y-4">
             <x-ui.card>
-                <x-ui.heading-3 class="mb-4">Configuration des agents</x-ui.heading-3>
+                <x-ui.heading-3 class="mb-4">Rôles du pipeline</x-ui.heading-3>
 
                 @foreach($agentTypes as $type)
                     @php
                         $value = $type->value;
-                        $label = config("maestro.agent_labels.{$value}", []);
+                        $label = config("maestro.role_labels.{$value}", []);
                     @endphp
                     <div class="mb-4 rounded-lg border p-3">
                         <div class="mb-2 flex items-center justify-between">
@@ -158,7 +158,7 @@
             @if($costEstimate)
                 <x-ui.card>
                     <x-ui.heading-3 class="mb-3">Estimation finale</x-ui.heading-3>
-                    <div class="grid grid-cols-3 gap-3">
+                    <div class="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-3">
                         <x-ui.metric-card label="Estimation basse" :value="'$'.number_format($costEstimate['total_low'], 4)" />
                         <x-ui.metric-card label="Estimation médiane" :value="'$'.number_format($costEstimate['total_mid'], 4)" />
                         <x-ui.metric-card label="Estimation haute" :value="'$'.number_format($costEstimate['total_high'], 4)" />

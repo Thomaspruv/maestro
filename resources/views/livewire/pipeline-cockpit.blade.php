@@ -1,5 +1,5 @@
 <div class="space-y-6" @if($shouldPoll) wire:poll.5s="refreshSnapshot" @endif>
-    <div class="flex items-start justify-between gap-4">
+    <div class="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
         <div>
             <x-ui.heading-2>Pipeline Cockpit</x-ui.heading-2>
             <p class="mt-1 text-[13px] text-maestro-muted">Tâche : {{ $task->title }}</p>
@@ -10,7 +10,7 @@
             :value="'$'.number_format($snapshot['total_cost'] ?? 0, 4)"
             :sub="($snapshot['is_active'] ?? false) ? 'Pipeline en cours…' : null"
             subColor="info"
-            class="min-w-[180px] text-right"
+            class="w-full text-left sm:min-w-[180px] sm:text-right"
         />
     </div>
 
@@ -29,8 +29,8 @@
             <div class="space-y-1">
                 @foreach($snapshot['steps'] ?? [] as $index => $step)
                     @if($step['type'] === 'agent')
-                        <x-maestro.cockpit-agent-step
-                            :agent-type="$step['agent_type']"
+                        <x-maestro.cockpit-pipeline-step
+                            :agent-type="$step['role']"
                             :status="$step['status']"
                             :cost="$step['cost']"
                             :run-id="$step['run_id']"

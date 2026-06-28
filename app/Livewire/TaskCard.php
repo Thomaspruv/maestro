@@ -11,7 +11,7 @@ class TaskCard extends Component
 
     public function mount(Task $task): void
     {
-        $this->task = $task->load(['agentRuns', 'gates', 'project']);
+        $this->task = $task->load(['pipelineSteps', 'gates', 'project']);
     }
 
     public function render()

@@ -4,7 +4,7 @@ namespace App\Services;
 
 use App\Enums\PrStatus;
 use App\Enums\TaskStatus;
-use App\Jobs\RunAgentJob;
+use App\Jobs\RunPipelineStepJob;
 use App\Models\Project;
 use App\Models\Task;
 use Github\AuthMethod;
@@ -82,7 +82,7 @@ class GitHubService
 
         if ($status === PrStatus::Merged) {
             $task->update(['status' => TaskStatus::Done]);
-            RunAgentJob::dispatch($task->fresh(), 'doc');
+            RunPipelineStepJob::dispatch($task->fresh(), 'doc');
         }
     }
 

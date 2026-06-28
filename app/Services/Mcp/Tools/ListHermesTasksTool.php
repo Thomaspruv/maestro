@@ -2,7 +2,7 @@
 
 namespace App\Services\Mcp\Tools;
 
-use App\Enums\AgentRunStatus;
+use App\Enums\PipelineStepStatus;
 use App\Enums\ProjectStatus;
 use App\Enums\TaskStatus;
 use App\Models\Task;
@@ -53,16 +53,16 @@ class ListHermesTasksTool implements McpTool
                     ->where('status', ProjectStatus::Active),
             )
             ->whereDoesntHave(
-                'agentRuns',
+                'pipelineSteps',
                 fn (Builder $query) => $query
-                    ->where('agent_type', 'dev')
+                    ->where('role', 'dev')
                     ->whereIn('status', [
-                        AgentRunStatus::Completed,
-                        AgentRunStatus::Running,
-                        AgentRunStatus::Pending,
+                        PipelineStepStatus::Completed,
+                        PipelineStepStatus::Running,
+                        PipelineStepStatus::Pending,
                     ]),
             )
-            ->with(['project:id,name,uuid,github_repo,github_branch', 'agentRuns'])
+            ->with(['project:id,name,uuid,github_repo,github_branch', 'pipelineSteps'])
             ->orderByRaw("CASE priority WHEN 'critical' THEN 1 WHEN 'high' THEN 2 WHEN 'medium' THEN 3 WHEN 'low' THEN 4 ELSE 5 END")
             ->orderBy('updated_at')
             ->limit($limit)
@@ -77,7 +77,7 @@ class ListHermesTasksTool implements McpTool
         return [
             'tasks' => $items,
             'count' => count($items),
-            'polling_hint' => 'Traiter tasks[0] en priorité. Workflow : claim_hermes_task → implémenter → add_agent_output(dev).',
+            'polling_hint' => 'Traiter tasks[0] en priorité. Workflow : claim_hermes_task → implémenter → record_step_output(dev).',
         ];
     }
 }

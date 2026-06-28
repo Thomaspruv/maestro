@@ -202,7 +202,7 @@ $subColors = [
 </div>
 ```
 
-### Agent row — `agent-row.blade.php`
+### Agent row — `role-row.blade.php`
 
 Props : `$emoji`, `$name`, `$model`, `$status`
 
@@ -262,7 +262,7 @@ Structure :
 Appliquer le design system à ces fichiers en priorité :
 
 1. `resources/views/livewire/global-dashboard.blade.php` — utiliser `<x-metric-card>` pour les KPIs
-2. `resources/views/livewire/pipeline-cockpit.blade.php` — utiliser `<x-agent-row>` et `<x-badge>`
+2. `resources/views/livewire/pipeline-cockpit.blade.php` — utiliser `<x-role-row>` et `<x-badge>`
 3. `resources/views/livewire/task-pipeline.blade.php` — remplacer les badges inline par `<x-badge>`
 4. `resources/views/livewire/kanban-board.blade.php` — cards avec `<x-card>`
 5. `resources/views/livewire/project-wizard.blade.php` — inputs et boutons avec les composants ui
@@ -278,7 +278,7 @@ Appliquer le design system à ces fichiers en priorité :
 - [ ] `resources/views/components/ui/button.blade.php`
 - [ ] `resources/views/components/ui/card.blade.php`
 - [ ] `resources/views/components/ui/metric-card.blade.php`
-- [ ] `resources/views/components/ui/agent-row.blade.php`
+- [ ] `resources/views/components/ui/role-row.blade.php`
 - [ ] `resources/views/components/ui/heading-1.blade.php` + heading-2, heading-3, label, mono
 - [ ] Layout `app.blade.php` — structure sidebar + main
 - [ ] `resources/views/components/sidebar.blade.php`

@@ -2,14 +2,14 @@
 
 namespace App\Support;
 
-use App\Enums\AgentRunStatus;
+use App\Enums\PipelineStepStatus;
 use App\Enums\TaskStatus;
-use App\Models\AgentRun;
+use App\Models\PipelineStep;
 use App\Models\Task;
 
 class PipelineActivity
 {
-    public static function agentMessage(string $agentType): string
+    public static function roleMessage(string $agentType): string
     {
         return match ($agentType) {
             'pm' => 'Analyse du besoin et rédaction des specs produit…',
@@ -30,40 +30,40 @@ class PipelineActivity
             return true;
         }
 
-        if ($task->relationLoaded('agentRuns')) {
-            return $task->agentRuns->contains(
-                fn (AgentRun $run) => in_array($run->status, [AgentRunStatus::Running, AgentRunStatus::Pending], true)
+        if ($task->relationLoaded('pipelineSteps')) {
+            return $task->pipelineSteps->contains(
+                fn (PipelineStep $run) => in_array($run->status, [PipelineStepStatus::Running, PipelineStepStatus::Pending], true)
             );
         }
 
-        return $task->agentRuns()
-            ->whereIn('status', [AgentRunStatus::Running, AgentRunStatus::Pending])
+        return $task->pipelineSteps()
+            ->whereIn('status', [PipelineStepStatus::Running, PipelineStepStatus::Pending])
             ->exists();
     }
 
-    public static function runningRun(Task $task): ?AgentRun
+    public static function runningRun(Task $task): ?PipelineStep
     {
-        if (! $task->relationLoaded('agentRuns')) {
-            $task->load('agentRuns');
+        if (! $task->relationLoaded('pipelineSteps')) {
+            $task->load('pipelineSteps');
         }
 
-        return $task->agentRuns->first(
-            fn (AgentRun $run) => $run->status === AgentRunStatus::Running
+        return $task->pipelineSteps->first(
+            fn (PipelineStep $run) => $run->status === PipelineStepStatus::Running
         );
     }
 
-    public static function pendingRun(Task $task): ?AgentRun
+    public static function pendingRun(Task $task): ?PipelineStep
     {
-        if (! $task->relationLoaded('agentRuns')) {
-            $task->load('agentRuns');
+        if (! $task->relationLoaded('pipelineSteps')) {
+            $task->load('pipelineSteps');
         }
 
-        return $task->agentRuns->first(
-            fn (AgentRun $run) => $run->status === AgentRunStatus::Pending
+        return $task->pipelineSteps->first(
+            fn (PipelineStep $run) => $run->status === PipelineStepStatus::Pending
         );
     }
 
-    public static function formatDuration(?AgentRun $run): ?string
+    public static function formatDuration(?PipelineStep $run): ?string
     {
         if (! $run?->started_at) {
             return null;
@@ -74,45 +74,45 @@ class PipelineActivity
         return $run->started_at->diffForHumans($end, true, true, 2);
     }
 
-    public static function currentAgentType(Task $task): ?string
+    public static function currentPipelineRoleSlug(Task $task): ?string
     {
-        if (is_string($task->current_agent) && $task->current_agent !== '') {
-            return $task->current_agent;
+        if (is_string($task->current_role) && $task->current_role !== '') {
+            return $task->current_role;
         }
 
-        return self::runningRun($task)?->agent_type;
+        return self::runningRun($task)?->role;
     }
 
     /**
      * Échec bloquant : ignore les runs failed déjà rattrapés par un succès ou un retry en cours.
      */
-    public static function blockingFailedRun(Task $task): ?AgentRun
+    public static function blockingFailedRun(Task $task): ?PipelineStep
     {
-        if (! $task->relationLoaded('agentRuns')) {
-            $task->load('agentRuns');
+        if (! $task->relationLoaded('pipelineSteps')) {
+            $task->load('pipelineSteps');
         }
 
         if ($task->status === TaskStatus::Failed) {
-            return $task->agentRuns->first(
-                fn (AgentRun $run) => $run->status === AgentRunStatus::Failed
+            return $task->pipelineSteps->first(
+                fn (PipelineStep $run) => $run->status === PipelineStepStatus::Failed
             );
         }
 
-        $failedRuns = $task->agentRuns
-            ->where('status', AgentRunStatus::Failed)
+        $failedRuns = $task->pipelineSteps
+            ->where('status', PipelineStepStatus::Failed)
             ->sortBy('id');
 
         foreach ($failedRuns as $failed) {
-            $laterRuns = $task->agentRuns->filter(
-                fn (AgentRun $run) => $run->agent_type === $failed->agent_type && $run->id > $failed->id
+            $laterRuns = $task->pipelineSteps->filter(
+                fn (PipelineStep $run) => $run->role === $failed->role && $run->id > $failed->id
             );
 
             $recovered = $laterRuns->contains(
-                fn (AgentRun $run) => in_array($run->status, [
-                    AgentRunStatus::Completed,
-                    AgentRunStatus::Skipped,
-                    AgentRunStatus::Running,
-                    AgentRunStatus::Pending,
+                fn (PipelineStep $run) => in_array($run->status, [
+                    PipelineStepStatus::Completed,
+                    PipelineStepStatus::Skipped,
+                    PipelineStepStatus::Running,
+                    PipelineStepStatus::Pending,
                 ], true)
             );
 
