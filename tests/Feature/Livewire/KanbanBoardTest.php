@@ -46,7 +46,7 @@ class KanbanBoardTest extends TestCase
             ->assertSee('En attente d\'Hermes')
             ->assertSee('Prêt pour le cron MCP')
             ->assertSee('Voir les specs')
-            ->assertSee('Démarrer les agents');
+            ->assertSee('Envoyer à Hermes');
     }
 
     public function test_sync_kanban_columns_persists_move_to_hermes(): void

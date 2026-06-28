@@ -20,6 +20,13 @@ class GateControllerTest extends TestCase
 {
     use RefreshDatabase;
 
+    protected function setUp(): void
+    {
+        parent::setUp();
+
+        config(['maestro.internal_pipeline_enabled' => true]);
+    }
+
     public function test_gate_can_be_approved(): void
     {
         Queue::fake();

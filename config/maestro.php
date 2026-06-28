@@ -4,6 +4,13 @@ return [
 
     'max_gate_regenerations' => 2,
 
+    /*
+    | Pipeline IA interne Maestro (PM, UX, QA… via Horizon).
+    | Désactivé par défaut : Hermes gère l'exécution via MCP.
+    | Activer avec MAESTRO_INTERNAL_PIPELINE=true pour réactiver les workers.
+    */
+    'internal_pipeline_enabled' => filter_var(env('MAESTRO_INTERNAL_PIPELINE', false), FILTER_VALIDATE_BOOL),
+
     'model_prices' => [
         'claude-sonnet-4-6' => ['input' => 0.000003, 'output' => 0.000015, 'cache' => 0.0000003],
         'claude-haiku-4-5' => ['input' => 0.00000025, 'output' => 0.00000125, 'cache' => 0.000000025],

@@ -61,12 +61,16 @@ class KanbanBoard extends Component
 
         $this->authorize('update', $task);
 
-        $task->update([
-            'status' => TaskStatus::InProgress,
-            'current_role' => null,
-        ]);
+        if (OrchestratorService::internalPipelineEnabled()) {
+            $task->update([
+                'status' => TaskStatus::InProgress,
+                'current_role' => null,
+            ]);
+            $orchestrator->advance($task->fresh());
+        } else {
+            $orchestrator->handoffToHermes($task);
+        }
 
-        $orchestrator->advance($task->fresh());
         $this->openTaskId = $taskId;
     }
 

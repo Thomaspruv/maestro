@@ -90,7 +90,7 @@ class PipelineHealthServiceTest extends TestCase
     #[Test]
     public function database_queue_with_pending_jobs_reports_blocked_worker(): void
     {
-        config(['queue.default' => 'database']);
+        config(['queue.default' => 'database', 'maestro.internal_pipeline_enabled' => true]);
 
         $task = Task::factory()->create(['status' => TaskStatus::InProgress, 'current_role' => 'ux']);
         PipelineStep::factory()->create([
@@ -180,9 +180,32 @@ class PipelineHealthServiceTest extends TestCase
     }
 
     #[Test]
+    public function kanban_banner_hidden_when_internal_pipeline_disabled(): void
+    {
+        config(['queue.default' => 'redis', 'maestro.internal_pipeline_enabled' => false]);
+
+        $project = Project::factory()->create();
+        $task = Task::factory()->create([
+            'project_id' => $project->id,
+            'status' => TaskStatus::InProgress,
+        ]);
+
+        PipelineStep::factory()->create([
+            'task_id' => $task->id,
+            'role' => 'pm',
+            'status' => PipelineStepStatus::Pending,
+            'created_at' => now()->subMinute(),
+        ]);
+
+        $banner = app(PipelineHealthService::class)->kanbanWorkerBanner($project->fresh());
+
+        $this->assertFalse($banner['show']);
+    }
+
+    #[Test]
     public function kanban_banner_hidden_when_database_queue_is_idle(): void
     {
-        config(['queue.default' => 'database']);
+        config(['queue.default' => 'database', 'maestro.internal_pipeline_enabled' => true]);
 
         $project = Project::factory()->create();
 
@@ -194,7 +217,7 @@ class PipelineHealthServiceTest extends TestCase
     #[Test]
     public function kanban_banner_shows_database_worker_message_not_horizon_when_jobs_pending(): void
     {
-        config(['queue.default' => 'database']);
+        config(['queue.default' => 'database', 'maestro.internal_pipeline_enabled' => true]);
 
         $project = Project::factory()->create();
 
@@ -218,7 +241,7 @@ class PipelineHealthServiceTest extends TestCase
     #[Test]
     public function kanban_banner_hidden_when_worker_is_processing_reserved_job(): void
     {
-        config(['queue.default' => 'database']);
+        config(['queue.default' => 'database', 'maestro.internal_pipeline_enabled' => true]);
 
         $project = Project::factory()->create();
 
@@ -248,7 +271,7 @@ class PipelineHealthServiceTest extends TestCase
     #[Test]
     public function task_not_blocked_when_database_worker_is_active(): void
     {
-        config(['queue.default' => 'database']);
+        config(['queue.default' => 'database', 'maestro.internal_pipeline_enabled' => true]);
 
         $task = Task::factory()->create(['status' => TaskStatus::InProgress]);
 
@@ -276,7 +299,7 @@ class PipelineHealthServiceTest extends TestCase
     #[Test]
     public function kanban_banner_hidden_for_in_progress_task_with_active_running_agent(): void
     {
-        config(['queue.default' => 'database']);
+        config(['queue.default' => 'database', 'maestro.internal_pipeline_enabled' => true]);
 
         $project = Project::factory()->create();
         $task = Task::factory()->create([

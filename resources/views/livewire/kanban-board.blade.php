@@ -101,7 +101,7 @@
                                     wire:click.stop="startTask({{ $task->id }})"
                                     class="maestro-btn-primary w-full py-1.5 text-[10px]"
                                 >
-                                    ▶ Démarrer les agents
+                                    ▶ {{ config('maestro.internal_pipeline_enabled') ? 'Démarrer' : 'Envoyer à Hermes' }}
                                 </button>
                             @elseif($task->status->value === 'waiting_hermes')
                                 <button

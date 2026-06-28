@@ -62,14 +62,19 @@ class TaskController extends Controller
         $this->authorize('update', $task);
         abort_unless($task->project_id === $project->id, 404);
 
-        $task->update([
-            'status' => TaskStatus::InProgress,
-            'current_role' => null,
-        ]);
+        if (OrchestratorService::internalPipelineEnabled()) {
+            $task->update([
+                'status' => TaskStatus::InProgress,
+                'current_role' => null,
+            ]);
+            $orchestrator->advance($task->fresh());
 
-        $orchestrator->advance($task->fresh());
+            return back()->with('success', 'Pipeline démarré.');
+        }
 
-        return back()->with('success', 'Pipeline démarré.');
+        $orchestrator->handoffToHermes($task);
+
+        return back()->with('success', 'Tâche envoyée à Hermes.');
     }
 
     public function retry(Project $project, Task $task, OrchestratorService $orchestrator): RedirectResponse
@@ -77,14 +82,19 @@ class TaskController extends Controller
         $this->authorize('update', $task);
         abort_unless($task->project_id === $project->id, 404);
 
-        $task->update([
-            'status' => TaskStatus::InProgress,
-            'current_role' => null,
-        ]);
+        if (OrchestratorService::internalPipelineEnabled()) {
+            $task->update([
+                'status' => TaskStatus::InProgress,
+                'current_role' => null,
+            ]);
+            $orchestrator->advance($task->fresh());
 
-        $orchestrator->advance($task->fresh());
+            return back()->with('success', 'Pipeline relancé.');
+        }
 
-        return back()->with('success', 'Pipeline relancé.');
+        $orchestrator->handoffToHermes($task);
+
+        return back()->with('success', 'Tâche renvoyée à Hermes.');
     }
 
     public function abandon(Project $project, Task $task): RedirectResponse

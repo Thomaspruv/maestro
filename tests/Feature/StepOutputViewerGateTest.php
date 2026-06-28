@@ -23,6 +23,13 @@ class StepOutputViewerGateTest extends TestCase
 {
     use RefreshDatabase;
 
+    protected function setUp(): void
+    {
+        parent::setUp();
+
+        config(['maestro.internal_pipeline_enabled' => true]);
+    }
+
     public function test_approve_gate_from_output_viewer(): void
     {
         Queue::fake();

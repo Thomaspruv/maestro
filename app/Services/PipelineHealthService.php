@@ -191,10 +191,14 @@ class PipelineHealthService
         }
 
         if ($task->status === TaskStatus::Backlog) {
+            $startMessage = OrchestratorService::internalPipelineEnabled()
+                ? 'Cliquez sur « Démarrer » pour lancer le premier rôle du pipeline.'
+                : 'Cliquez sur « Envoyer à Hermes » pour lancer le traitement.';
+
             return $this->build(
                 PipelineHealthState::NotStarted,
                 'Prêt à démarrer',
-                'Cliquez sur « Démarrer les agents » pour démarrer le premier agent.',
+                $startMessage,
                 0,
                 0,
                 $totalSteps,
@@ -249,6 +253,10 @@ class PipelineHealthService
             'show_horizon_link' => false,
         ];
 
+        if (! OrchestratorService::internalPipelineEnabled()) {
+            return $hidden;
+        }
+
         if (config('queue.default') === 'sync') {
             return $hidden;
         }
@@ -284,6 +292,10 @@ class PipelineHealthService
 
     private function projectNeedsWorker(Project $project): bool
     {
+        if (! OrchestratorService::internalPipelineEnabled()) {
+            return false;
+        }
+
         if (config('queue.default') === 'database' && $this->isDatabaseQueueStalled()) {
             return true;
         }
@@ -314,6 +326,10 @@ class PipelineHealthService
 
     private function isWorkerBlocked(Task $task): bool
     {
+        if (! OrchestratorService::internalPipelineEnabled()) {
+            return false;
+        }
+
         if (config('queue.default') === 'sync') {
             return false;
         }

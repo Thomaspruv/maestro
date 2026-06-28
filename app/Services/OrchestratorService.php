@@ -20,8 +20,39 @@ class OrchestratorService
 {
     private const PARALLEL_GROUP = ['ux', 'tech_lead'];
 
+    public static function internalPipelineEnabled(): bool
+    {
+        return (bool) config('maestro.internal_pipeline_enabled', false);
+    }
+
+    public function handoffToHermes(Task $task): void
+    {
+        $task->update([
+            'status' => TaskStatus::WaitingHermes,
+            'current_role' => 'hermes',
+        ]);
+    }
+
+    public function markTaskCompleted(Task $task): void
+    {
+        $task->update([
+            'status' => TaskStatus::Done,
+            'current_role' => null,
+        ]);
+
+        broadcast(new TaskCompleted($task->fresh()));
+    }
+
     public function advance(Task $task, bool $afterGateApproval = false): void
     {
+        if (! self::internalPipelineEnabled()) {
+            if ($this->hasCompletedDevStep($task)) {
+                $this->markTaskCompleted($task);
+            }
+
+            return;
+        }
+
         $task->loadMissing('project.roles');
 
         $nextAgent = $this->resolveNextRole($task);
@@ -247,7 +278,12 @@ class OrchestratorService
             return false;
         }
 
-        return ! $task->pipelineSteps()
+        return ! $this->hasCompletedDevStep($task);
+    }
+
+    private function hasCompletedDevStep(Task $task): bool
+    {
+        return $task->pipelineSteps()
             ->where('role', 'dev')
             ->where('status', PipelineStepStatus::Completed)
             ->exists();

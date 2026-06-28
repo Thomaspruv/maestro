@@ -20,7 +20,9 @@
                 </a>
             @endif
             @if($task->status->value === 'backlog')
-                <x-ui.button variant="primary" size="sm" wire:click="startPipeline">Démarrer</x-ui.button>
+                <x-ui.button variant="primary" size="sm" wire:click="startPipeline">
+                    {{ config('maestro.internal_pipeline_enabled') ? 'Démarrer' : 'Envoyer à Hermes' }}
+                </x-ui.button>
             @endif
         </div>
     </div>

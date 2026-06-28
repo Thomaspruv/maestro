@@ -25,6 +25,13 @@ class OrchestratorServiceTest extends TestCase
 {
     use RefreshDatabase;
 
+    protected function setUp(): void
+    {
+        parent::setUp();
+
+        config(['maestro.internal_pipeline_enabled' => true]);
+    }
+
     private function makeTask(TaskType $type, TaskMode $mode): Task
     {
         $user = User::factory()->create();

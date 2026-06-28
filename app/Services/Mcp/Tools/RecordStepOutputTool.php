@@ -101,11 +101,15 @@ class RecordStepOutputTool implements McpTool
         $task->increment('actual_cost', $cost);
 
         if ($arguments['role'] === 'dev') {
-            $task->update([
-                'status' => TaskStatus::InProgress,
-                'current_role' => null,
-            ]);
-            $this->orchestrator->advance($task->fresh());
+            if (OrchestratorService::internalPipelineEnabled()) {
+                $task->update([
+                    'status' => TaskStatus::InProgress,
+                    'current_role' => null,
+                ]);
+                $this->orchestrator->advance($task->fresh());
+            } else {
+                $this->orchestrator->markTaskCompleted($task->fresh());
+            }
         }
 
         return [

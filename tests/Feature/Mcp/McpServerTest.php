@@ -214,6 +214,47 @@ class McpServerTest extends TestCase
             'status' => PipelineStepStatus::Completed->value,
         ]);
 
+        $this->assertDatabaseHas('tasks', [
+            'id' => $task->id,
+            'status' => TaskStatus::Done->value,
+        ]);
+
+        Bus::assertNotDispatched(RunPipelineStepJob::class);
+    }
+
+    public function test_record_step_output_dev_resumes_internal_pipeline_when_enabled(): void
+    {
+        Bus::fake();
+        config(['maestro.internal_pipeline_enabled' => true]);
+
+        $project = Project::factory()->create(['user_id' => $this->user->id]);
+        $task = Task::factory()->create([
+            'project_id' => $project->id,
+            'status' => TaskStatus::WaitingHermes,
+            'current_role' => 'hermes',
+        ]);
+
+        foreach (['pm', 'ux', 'tech_lead', 'security'] as $agent) {
+            PipelineStep::factory()->create([
+                'task_id' => $task->id,
+                'role' => $agent,
+                'status' => PipelineStepStatus::Completed,
+            ]);
+        }
+
+        $response = $this->mcp('tools/call', [
+            'name' => 'record_step_output',
+            'arguments' => [
+                'task_id' => $task->id,
+                'role' => 'dev',
+                'output' => 'Code implémenté par Hermes',
+                'model' => 'deepseek/deepseek-chat',
+                'cost' => 0,
+            ],
+        ]);
+
+        $response->assertOk();
+
         Bus::assertDispatched(RunPipelineStepJob::class, fn (RunPipelineStepJob $job) => $job->role === 'qa');
     }
 
@@ -317,6 +358,8 @@ class McpServerTest extends TestCase
 
     public function test_get_task_includes_hermes_detail_block(): void
     {
+        config(['maestro.internal_pipeline_enabled' => true]);
+
         $project = Project::factory()->create([
             'user_id' => $this->user->id,
             'github_repo' => 'acme/maestro',

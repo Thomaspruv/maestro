@@ -79,6 +79,11 @@ class HermesTaskPresenter
 
     public function instruction(): string
     {
+        if (! config('maestro.internal_pipeline_enabled', false)) {
+            return 'Implémenter selon le titre et la description de la tâche (voir get_task). '
+                .'Appeler claim_hermes_task avant de commencer, puis record_step_output avec role=dev une fois terminé.';
+        }
+
         return 'Implémenter le code selon les specs de planning (PM, UX, Tech Lead). '
             .'Appeler claim_hermes_task avant de commencer, puis record_step_output avec role=dev une fois terminé.';
     }
@@ -104,6 +109,18 @@ class HermesTaskPresenter
      */
     private function specsPreview(Task $task): array
     {
+        if (! config('maestro.internal_pipeline_enabled', false)) {
+            $parts = array_filter([
+                'titre' => $task->title,
+                'description' => $task->description,
+                'module' => $task->module,
+                'type' => $task->type->value,
+                'priorité' => $task->priority->value,
+            ]);
+
+            return $parts;
+        }
+
         $preview = [];
 
         foreach (['tech_lead', 'ux', 'pm'] as $agentType) {

@@ -53,8 +53,16 @@ class TaskPipeline extends Component
     public function startPipeline(): void
     {
         $this->authorize('update', $this->task);
-        $this->task->update(['status' => TaskStatus::InProgress, 'current_role' => null]);
-        app(OrchestratorService::class)->advance($this->task->fresh());
+
+        $orchestrator = app(OrchestratorService::class);
+
+        if (OrchestratorService::internalPipelineEnabled()) {
+            $this->task->update(['status' => TaskStatus::InProgress, 'current_role' => null]);
+            $orchestrator->advance($this->task->fresh());
+        } else {
+            $orchestrator->handoffToHermes($this->task);
+        }
+
         $this->refreshTask();
     }
 
