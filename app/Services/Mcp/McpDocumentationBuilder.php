@@ -31,11 +31,14 @@ class McpDocumentationBuilder
 
     private function replacePlaceholders(string $content): string
     {
-        return str_replace(
+        $content = str_replace(
             ['{{MCP_URL}}', '{{APP_URL}}', '{{APP_NAME}}'],
             [url('/api/mcp'), config('app.url'), config('app.name', 'Maestro')],
             $content,
         );
+
+        // Le layout affiche déjà le titre de page — éviter le doublon H1 du markdown.
+        return preg_replace('/^# .+\R+/u', '', $content, 1) ?? $content;
     }
 
     private function buildToolsReference(): string

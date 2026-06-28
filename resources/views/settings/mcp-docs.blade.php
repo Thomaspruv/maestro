@@ -26,7 +26,7 @@
             <code class="block break-all rounded-md bg-bg-surface px-3 py-2 font-mono text-[11px] text-text-muted">{{ $mcpUrl }}</code>
         </div>
 
-        <article class="maestro-card mcp-docs-prose p-6 text-[13px] leading-relaxed text-text-primary">
+        <article class="maestro-card mcp-docs-prose overflow-x-auto p-6 text-[13px] leading-relaxed text-maestro-text">
             {!! $html !!}
         </article>
     </div>
