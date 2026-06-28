@@ -5,5 +5,5 @@ use App\Http\Middleware\AuthenticateMcp;
 use Illuminate\Support\Facades\Route;
 
 Route::post('/mcp', McpController::class)
-    ->middleware(AuthenticateMcp::class)
+    ->middleware([AuthenticateMcp::class, 'throttle:120,1'])
     ->name('api.mcp');

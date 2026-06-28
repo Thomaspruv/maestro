@@ -1,4 +1,4 @@
-# Maestro — Serveur MCP
+# {{APP_NAME}} — Serveur MCP
 
 Guide d'intégration pour **Hermes** et **Claude** (Code / Cowork).
 
@@ -8,17 +8,12 @@ Guide d'intégration pour **Hermes** et **Claude** (Code / Cowork).
 
 | Paramètre | Valeur |
 |-----------|--------|
-| **URL** | `{URL_MAESTRO}/api/mcp` |
+| **URL** | `{{MCP_URL}}` |
 | **Protocole** | JSON-RPC 2.0, POST HTTP |
 | **Headers** | `Content-Type: application/json` |
 | **Auth** | `Authorization: Bearer <TOKEN>` |
 
-**Où trouver l'URL exacte :** Maestro → **Paramètres → Intégrations MCP**
-
-Exemples :
-
-- Local : `http://127.0.0.1:8001/api/mcp`
-- Prod : `https://maestro.votre-domaine.com/api/mcp`
+**Où trouver l'URL exacte :** Maestro → **Paramètres → Intégrations MCP → Documentation API**
 
 > Utilisez toujours l'URL affichée dans l'interface Maestro, pas une URL devinée.
 
@@ -39,7 +34,7 @@ Exemples :
 ### Test rapide
 
 ```bash
-curl -s -X POST http://127.0.0.1:8001/api/mcp \
+curl -s -X POST {{MCP_URL}} \
   -H "Authorization: Bearer VOTRE_TOKEN" \
   -H "Content-Type: application/json" \
   -d '{"jsonrpc":"2.0","id":1,"method":"initialize","params":{}}'
@@ -62,7 +57,7 @@ Réponse OK (HTTP 200) :
 Lister les tools :
 
 ```bash
-curl -s -X POST http://127.0.0.1:8001/api/mcp \
+curl -s -X POST {{MCP_URL}} \
   -H "Authorization: Bearer VOTRE_TOKEN" \
   -H "Content-Type: application/json" \
   -d '{"jsonrpc":"2.0","id":2,"method":"tools/list","params":{}}'
@@ -77,7 +72,7 @@ Dans Maestro → Paramètres MCP, la colonne **Dernière utilisation** du token 
 ```yaml
 mcp_servers:
   maestro:
-    url: http://127.0.0.1:8001/api/mcp
+    url: {{MCP_URL}}
     auth:
       type: bearer
       token: "VOTRE_TOKEN_40_CARACTERES"
@@ -94,22 +89,22 @@ mcp_servers:
 À coller dans la routine planifiée (toutes les 5 min) :
 
 ```
-Tu es connecté au serveur MCP Maestro. Workflow dev :
+Tu es connecté au serveur MCP Maestro (workflow_mode: hermes_only).
 
 1. Appelle list_hermes_tasks() pour voir les tâches prêtes.
 2. Si count = 0, arrête-toi.
 3. Prends tasks[0] (priorité la plus haute).
 4. Appelle claim_hermes_task(task_id) pour réserver la tâche.
-5. Appelle get_task(task_id) et lis hermes.specs_preview (PM, UX, Tech Lead).
+5. Appelle get_task(task_id) et lis hermes.specs_preview (titre, description, module).
 6. Clone le dépôt GitHub indiqué (hermes.github.repo, branche hermes.github.branch).
-7. Implémente le code selon les specs.
+7. Implémente le code selon le titre et la description de la tâche.
 8. Appelle record_step_output avec :
    - task_id
    - role: "dev"
    - output: résumé de ce qui a été fait (fichiers, décisions, commandes)
    - model: le modèle utilisé
    - cost: 0 si gratuit
-9. Maestro reprendra automatiquement QA → PR Expert → Doc.
+9. La tâche passe automatiquement en statut done.
 
 En cas d'échec avant l'étape 8 :
   update_task_status(task_id, "waiting_hermes")
@@ -122,7 +117,7 @@ Fréquence suggérée : `*/5 * * * *`
 ## 4. Configuration Claude Code
 
 ```bash
-claude mcp add --transport http maestro http://127.0.0.1:8001/api/mcp \
+claude mcp add --transport http maestro {{MCP_URL}} \
   --header "Authorization: Bearer VOTRE_TOKEN"
 ```
 
@@ -145,7 +140,7 @@ Exemples de commandes dans Claude Code :
 Cowork n'utilise **pas** de token statique.
 
 1. Cowork → **Paramètres → Connecteurs → Ajouter un connecteur custom**
-2. URL : `https://maestro.votre-domaine.com/api/mcp`
+2. URL : `{{MCP_URL}}`
 3. Se connecter à Maestro dans le navigateur et approuver l'accès
 
 Prérequis côté Maestro :
@@ -158,7 +153,7 @@ Prérequis côté Maestro :
 Test :
 
 ```bash
-curl -s https://maestro.votre-domaine.com/.well-known/oauth-protected-resource
+curl -s {{APP_URL}}/.well-known/oauth-protected-resource
 ```
 
 ---
@@ -170,7 +165,7 @@ curl -s https://maestro.votre-domaine.com/.well-known/oauth-protected-resource
 | Méthode | Description |
 |---------|-------------|
 | `initialize` | Handshake, retourne les capacités du serveur |
-| `tools/list` | Liste les 10 tools disponibles |
+| `tools/list` | Liste les 11 tools disponibles |
 | `tools/call` | Exécute un tool par son nom |
 
 ### Format `tools/call`
@@ -189,9 +184,20 @@ curl -s https://maestro.votre-domaine.com/.well-known/oauth-protected-resource
 
 La réponse utile est dans **`result.content[0].text`** (string JSON à parser).
 
+### Codes d'erreur JSON-RPC
+
+| Code HTTP | Code JSON-RPC | Signification |
+|-----------|---------------|---------------|
+| 400 | -32600 | Requête invalide (`jsonrpc` absent ou incorrect) |
+| 401 | -32001 | Token manquant ou invalide |
+| 404 | -32601 | Méthode ou tool inconnu |
+| 422 | -32602 | Paramètres manquants ou invalides |
+
 ---
 
-## 7. Tools disponibles
+## 7. Tools — exemples
+
+> La référence complète des schémas (`inputSchema`) est générée automatiquement depuis le code (section 12 ci-dessous ou page Documentation API).
 
 | Tool | Description |
 |------|-------------|
@@ -205,6 +211,7 @@ La réponse utile est dans **`result.content[0].text`** (string JSON à parser).
 | `record_step_output` | Enregistre l'output d'une étape (ex. `dev` pour Hermes) |
 | `request_gate` | Demande une validation humaine |
 | `log_cost` | Enregistre un coût |
+| `add_agent_output` | **Alias legacy** de `record_step_output` |
 
 ### `list_hermes_tasks`
 
@@ -214,10 +221,11 @@ La réponse utile est dans **`result.content[0].text`** (string JSON à parser).
 { "limit": 10 }
 ```
 
-**Réponse exemple :**
+**Réponse exemple (workflow hermes_only) :**
 
 ```json
 {
+  "workflow_mode": "hermes_only",
   "tasks": [
     {
       "task_id": 42,
@@ -227,6 +235,7 @@ La réponse utile est dans **`result.content[0].text`** (string JSON à parser).
       "priority": "high",
       "module": "auth",
       "ready_since": "2026-06-27T10:00:00+00:00",
+      "workflow_mode": "hermes_only",
       "hermes_action": "implement_dev",
       "project": {
         "id": 1,
@@ -234,12 +243,11 @@ La réponse utile est dans **`result.content[0].text`** (string JSON à parser).
         "github_repo": "owner/repo",
         "github_branch": "main"
       },
-      "planning_roles_completed": ["pm", "ux", "tech_lead", "security"],
-      "instruction": "Implémenter le code selon les specs..."
+      "instruction": "Implémenter selon le titre et la description..."
     }
   ],
   "count": 1,
-  "polling_hint": "Traiter tasks[0] en priorité. Workflow : claim_hermes_task → implémenter → record_step_output(dev)."
+  "polling_hint": "Traiter tasks[0] en priorité. Workflow : claim_hermes_task → implémenter selon titre/description → record_step_output(dev) → done."
 }
 ```
 
@@ -265,24 +273,26 @@ Tri : priorité (`critical` → `high` → `medium` → `low`), puis ancienneté
 { "task_id": 42 }
 ```
 
-**Bloc `hermes` dans la réponse :**
+**Bloc `hermes` dans la réponse (hermes_only) :**
 
 ```json
 {
   "hermes": {
+    "workflow_mode": "hermes_only",
     "should_process": true,
     "action": "implement_dev",
-    "instruction": "...",
+    "instruction": "Implémenter selon le titre et la description...",
     "ready_since": "2026-06-27T10:00:00+00:00",
     "github": {
       "repo": "owner/repo",
       "branch": "main"
     },
-    "planning_roles_completed": ["pm", "ux", "tech_lead", "security"],
     "specs_preview": {
-      "tech_lead": "Architecture et plan d'implémentation...",
-      "ux": "Wireframes et parcours utilisateur...",
-      "pm": "Specs produit..."
+      "titre": "Ajouter auth OAuth",
+      "description": "Implémenter le flux OAuth GitHub...",
+      "module": "auth",
+      "type": "feature",
+      "priorité": "high"
     }
   }
 }
@@ -298,7 +308,7 @@ Tri : priorité (`critical` → `high` → `medium` → `low`), puis ancienneté
 
 ### `record_step_output` (fin du travail dev Hermes)
 
-> **Alias legacy :** `add_agent_output` reste accepté (paramètre `agent_type` mappé vers `role`) pour la transition Hermes.
+> **Alias legacy :** `add_agent_output` reste accepté (paramètre `agent_type` mappé vers `role`).
 
 **Arguments requis :** `task_id`, `role`, `output`, `model`
 
@@ -314,7 +324,11 @@ Tri : priorité (`critical` → `high` → `medium` → `low`), puis ancienneté
 }
 ```
 
-Après `record_step_output` avec `role: dev`, Maestro relance automatiquement la chaîne : **QA → PR Expert → Doc**.
+**Réponse :** inclut `workflow_mode` et le statut final de la tâche dans `task.status`.
+
+En mode **hermes_only** (défaut) : `record_step_output(role=dev)` passe la tâche en **`done`**.
+
+En mode **internal_pipeline** (`MAESTRO_INTERNAL_PIPELINE=true`) : Maestro relance QA → PR Expert → Doc.
 
 ### `update_task_status`
 
@@ -322,22 +336,21 @@ Après `record_step_output` avec `role: dev`, Maestro relance automatiquement la
 
 ---
 
-## 8. Cycle de vie d'une tâche
+## 8. Cycle de vie d'une tâche (hermes_only)
 
 ```
 backlog
-  → [Maestro : PM, UX, Tech Lead, Security]
+  → [Kanban : « Envoyer à Hermes »]
   → waiting_hermes          ← Hermes intervient ici
-  → [Hermes : dev via record_step_output]
-  → in_progress             ← Maestro : QA, PR Expert, Doc
+  → [Hermes : claim → dev via record_step_output]
   → done
 ```
 
 | Statut | Qui agit |
 |--------|----------|
-| `backlog` | Pas encore démarrée |
-| `in_progress` | Pipeline Maestro (PM, UX…) ou Hermes en cours de dev |
+| `backlog` | Pas encore envoyée à Hermes |
 | `waiting_hermes` | **Prête pour Hermes** — colonne Hermes du Kanban |
+| `in_progress` | Hermes en cours de dev (`current_role: hermes`) |
 | `in_review` | En revue |
 | `done` | Terminée |
 | `failed` | Échec |
@@ -346,7 +359,26 @@ Hermes surveille `waiting_hermes` via **`list_hermes_tasks`**, pas via `list_tas
 
 ---
 
-## 9. Dépannage
+## 9. Pipeline interne (optionnel)
+
+Par défaut, Maestro utilise le flux **hermes_only** : pas de PM/UX/QA automatique.
+
+Pour réactiver la pipeline interne (PM → UX → Tech Lead → Security → QA → Doc) :
+
+```env
+MAESTRO_INTERNAL_PIPELINE=true
+```
+
+Dans ce mode :
+
+- Le Kanban affiche « Démarrer » au lieu de « Envoyer à Hermes »
+- `hermes.specs_preview` contient les outputs PM/UX/Tech Lead
+- `planning_roles_completed` est présent dans les réponses Hermes
+- `record_step_output(dev)` relance QA → PR Expert → Doc au lieu de marquer `done`
+
+---
+
+## 10. Dépannage
 
 ### HTTP 401 Unauthorized
 
@@ -372,14 +404,13 @@ Hermes surveille `waiting_hermes` via **`list_hermes_tasks`**, pas via `list_tas
 ### Mauvais port ou URL
 
 - L'URL affichée dans **Paramètres → Intégrations MCP** est celle à utiliser
-- Si Maestro tourne sur le port **8001**, ne pas configurer le port **8000**
 - En production, aligner `APP_URL` dans `.env` sur l'URL HTTPS réelle (requis pour OAuth Cowork)
 
 ### `list_hermes_tasks` retourne `count: 0`
 
 - Aucune tâche en statut `waiting_hermes`
-- Lancer d'abord le pipeline Maestro depuis le Kanban (« Démarrer »)
-- La tâche doit passer par PM / UX / Tech Lead / Security avant d'être prête pour Hermes
+- Depuis le Kanban, cliquer **« Envoyer à Hermes »** sur une tâche en backlog
+- Vérifier que le projet est **actif** et lié au compte du token
 
 ### Connexion OK mais projets vides
 
@@ -388,7 +419,7 @@ Hermes surveille `waiting_hermes` via **`list_hermes_tasks`**, pas via `list_tas
 
 ---
 
-## 10. Sécurité
+## 11. Sécurité
 
 - Un token = accès MCP complet au compte Maestro associé
 - Révoquer immédiatement un token compromis : Paramètres MCP → Révoquer
@@ -397,7 +428,8 @@ Hermes surveille `waiting_hermes` via **`list_hermes_tasks`**, pas via `list_tas
 
 ---
 
-## 11. Références
+## 12. Références
 
 - Déploiement prod : [DEPLOYMENT.md](./DEPLOYMENT.md)
 - UI tokens : Maestro → Paramètres → Intégrations MCP
+- Documentation API dans l'app : Paramètres → Intégrations MCP → Documentation API

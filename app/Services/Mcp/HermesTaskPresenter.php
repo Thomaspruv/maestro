@@ -13,6 +13,22 @@ class HermesTaskPresenter
         private readonly PipelineOutputCondenser $condenser,
     ) {}
 
+    public static function workflowMode(): string
+    {
+        return config('maestro.internal_pipeline_enabled', false)
+            ? 'internal_pipeline'
+            : 'hermes_only';
+    }
+
+    public static function pollingHint(): string
+    {
+        if (self::workflowMode() === 'hermes_only') {
+            return 'Traiter tasks[0] en priorité. Workflow : claim_hermes_task → implémenter selon titre/description → record_step_output(dev) → done.';
+        }
+
+        return 'Traiter tasks[0] en priorité. Workflow : claim_hermes_task → implémenter selon specs planning → record_step_output(dev) → QA/Doc.';
+    }
+
     public function isAwaitingHermes(Task $task): bool
     {
         if ($task->status !== TaskStatus::WaitingHermes) {
@@ -29,7 +45,7 @@ class HermesTaskPresenter
     {
         $task->loadMissing(['project:id,name,uuid,github_repo,github_branch', 'pipelineSteps']);
 
-        return [
+        $item = [
             'task_id' => $task->id,
             'uuid' => $task->uuid,
             'title' => $task->title,
@@ -37,6 +53,7 @@ class HermesTaskPresenter
             'priority' => $task->priority->value,
             'module' => $task->module,
             'ready_since' => $task->updated_at?->toIso8601String(),
+            'workflow_mode' => self::workflowMode(),
             'project' => [
                 'id' => $task->project_id,
                 'name' => $task->project->name,
@@ -44,9 +61,14 @@ class HermesTaskPresenter
                 'github_branch' => $task->project->github_branch,
             ],
             'hermes_action' => 'implement_dev',
-            'planning_roles_completed' => $this->completedPlanningRoles($task),
             'instruction' => $this->instruction(),
         ];
+
+        if (self::workflowMode() === 'internal_pipeline') {
+            $item['planning_roles_completed'] = $this->completedPlanningRoles($task);
+        }
+
+        return $item;
     }
 
     /**
@@ -61,7 +83,8 @@ class HermesTaskPresenter
                 && $task->current_role === 'hermes'
                 && ! $this->hasActiveDevRun($task));
 
-        return [
+        $block = [
+            'workflow_mode' => self::workflowMode(),
             'should_process' => $shouldProcess,
             'action' => $shouldProcess ? 'implement_dev' : null,
             'instruction' => $shouldProcess ? $this->instruction() : null,
@@ -72,9 +95,14 @@ class HermesTaskPresenter
                 'repo' => $task->project->github_repo,
                 'branch' => $task->github_branch ?? $task->project->github_branch,
             ],
-            'planning_roles_completed' => $this->completedPlanningRoles($task),
             'specs_preview' => $this->specsPreview($task),
         ];
+
+        if (self::workflowMode() === 'internal_pipeline') {
+            $block['planning_roles_completed'] = $this->completedPlanningRoles($task);
+        }
+
+        return $block;
     }
 
     public function instruction(): string

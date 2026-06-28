@@ -75,9 +75,10 @@ class ListHermesTasksTool implements McpTool
             ->all();
 
         return [
+            'workflow_mode' => HermesTaskPresenter::workflowMode(),
             'tasks' => $items,
             'count' => count($items),
-            'polling_hint' => 'Traiter tasks[0] en priorité. Workflow : claim_hermes_task → implémenter → record_step_output(dev).',
+            'polling_hint' => HermesTaskPresenter::pollingHint(),
         ];
     }
 }

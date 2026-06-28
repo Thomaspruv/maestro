@@ -9,37 +9,28 @@ use App\Enums\TaskStatus;
 use App\Events\GatePending;
 use App\Jobs\RunPipelineStepJob;
 use App\Models\PipelineStep;
-use App\Models\McpToken;
 use App\Models\Project;
 use App\Models\Task;
 use App\Models\User;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\Bus;
 use Illuminate\Support\Facades\Event;
-use Illuminate\Support\Str;
-use Illuminate\Testing\TestResponse;
+use Tests\Support\McpTestHelpers;
 use Tests\TestCase;
 
 class McpServerTest extends TestCase
 {
+    use McpTestHelpers;
     use RefreshDatabase;
 
     private User $user;
-
-    private string $plainToken;
 
     protected function setUp(): void
     {
         parent::setUp();
 
         $this->user = User::factory()->create();
-        $this->plainToken = Str::random(40);
-
-        McpToken::create([
-            'user_id' => $this->user->id,
-            'name' => 'Hermes',
-            'token' => hash('sha256', $this->plainToken),
-        ]);
+        $this->setUpMcpAuth($this->user);
     }
 
     public function test_initialize_returns_capabilities(): void
@@ -50,7 +41,7 @@ class McpServerTest extends TestCase
             'method' => 'initialize',
             'params' => [],
         ], [
-            'Authorization' => 'Bearer '.$this->plainToken,
+            'Authorization' => 'Bearer '.$this->mcpPlainToken,
         ]);
 
         $response->assertOk()
@@ -106,7 +97,7 @@ class McpServerTest extends TestCase
         ]);
 
         $response->assertOk();
-        $payload = json_decode($response->json('result.content.0.text'), true);
+        $payload = $this->mcpToolResult($response);
 
         $this->assertDatabaseHas('tasks', [
             'id' => $payload['task']['id'],
@@ -207,6 +198,7 @@ class McpServerTest extends TestCase
         ]);
 
         $response->assertOk();
+        $payload = $this->mcpToolResult($response);
 
         $this->assertDatabaseHas('pipeline_steps', [
             'task_id' => $task->id,
@@ -214,10 +206,8 @@ class McpServerTest extends TestCase
             'status' => PipelineStepStatus::Completed->value,
         ]);
 
-        $this->assertDatabaseHas('tasks', [
-            'id' => $task->id,
-            'status' => TaskStatus::Done->value,
-        ]);
+        $this->assertSame('hermes_only', $payload['workflow_mode']);
+        $this->assertSame(TaskStatus::Done->value, $payload['task']['status']);
 
         Bus::assertNotDispatched(RunPipelineStepJob::class);
     }
@@ -254,7 +244,9 @@ class McpServerTest extends TestCase
         ]);
 
         $response->assertOk();
+        $payload = $this->mcpToolResult($response);
 
+        $this->assertSame('internal_pipeline', $payload['workflow_mode']);
         Bus::assertDispatched(RunPipelineStepJob::class, fn (RunPipelineStepJob $job) => $job->role === 'qa');
     }
 
@@ -280,8 +272,9 @@ class McpServerTest extends TestCase
         ]);
 
         $response->assertOk();
-        $payload = json_decode($response->json('result.content.0.text'), true);
+        $payload = $this->mcpToolResult($response);
 
+        $this->assertSame('hermes_only', $payload['workflow_mode']);
         $this->assertSame(1, $payload['count']);
         $this->assertSame($ready->id, $payload['tasks'][0]['task_id']);
         $this->assertSame('implement_dev', $payload['tasks'][0]['hermes_action']);
@@ -307,7 +300,7 @@ class McpServerTest extends TestCase
         ]);
 
         $response->assertOk();
-        $payload = json_decode($response->json('result.content.0.text'), true);
+        $payload = $this->mcpToolResult($response);
 
         $this->assertSame(0, $payload['count']);
     }
@@ -327,10 +320,11 @@ class McpServerTest extends TestCase
         ]);
 
         $response->assertOk();
-        $payload = json_decode($response->json('result.content.0.text'), true);
+        $payload = $this->mcpToolResult($response);
 
         $this->assertTrue($payload['claimed']);
         $this->assertTrue($payload['hermes']['should_process']);
+        $this->assertSame('hermes_only', $payload['hermes']['workflow_mode']);
         $this->assertDatabaseHas('tasks', [
             'id' => $task->id,
             'status' => TaskStatus::InProgress->value,
@@ -356,7 +350,37 @@ class McpServerTest extends TestCase
             ->assertJsonPath('error.message', 'Cette tâche n\'est pas disponible pour Hermes (statut ou run dev déjà présent).');
     }
 
-    public function test_get_task_includes_hermes_detail_block(): void
+    public function test_get_task_includes_hermes_detail_block_in_hermes_only_mode(): void
+    {
+        $project = Project::factory()->create([
+            'user_id' => $this->user->id,
+            'github_repo' => 'acme/maestro',
+            'github_branch' => 'main',
+        ]);
+        $task = Task::factory()->create([
+            'project_id' => $project->id,
+            'title' => 'OAuth GitHub',
+            'description' => 'Implémenter le flux OAuth',
+            'status' => TaskStatus::WaitingHermes,
+        ]);
+
+        $response = $this->mcp('tools/call', [
+            'name' => 'get_task',
+            'arguments' => ['task_id' => $task->id],
+        ]);
+
+        $response->assertOk();
+        $payload = $this->mcpToolResult($response);
+
+        $this->assertTrue($payload['hermes']['should_process']);
+        $this->assertSame('implement_dev', $payload['hermes']['action']);
+        $this->assertSame('hermes_only', $payload['hermes']['workflow_mode']);
+        $this->assertSame('acme/maestro', $payload['hermes']['github']['repo']);
+        $this->assertArrayHasKey('titre', $payload['hermes']['specs_preview']);
+        $this->assertArrayNotHasKey('planning_roles_completed', $payload['hermes']);
+    }
+
+    public function test_get_task_includes_planning_specs_when_internal_pipeline_enabled(): void
     {
         config(['maestro.internal_pipeline_enabled' => true]);
 
@@ -382,26 +406,10 @@ class McpServerTest extends TestCase
         ]);
 
         $response->assertOk();
-        $payload = json_decode($response->json('result.content.0.text'), true);
+        $payload = $this->mcpToolResult($response);
 
-        $this->assertTrue($payload['hermes']['should_process']);
-        $this->assertSame('implement_dev', $payload['hermes']['action']);
-        $this->assertSame('acme/maestro', $payload['hermes']['github']['repo']);
+        $this->assertSame('internal_pipeline', $payload['hermes']['workflow_mode']);
         $this->assertArrayHasKey('tech_lead', $payload['hermes']['specs_preview']);
-    }
-
-    /**
-     * @param  array<string, mixed>  $params
-     */
-    private function mcp(string $method, array $params = []): TestResponse
-    {
-        return $this->postJson('/api/mcp', [
-            'jsonrpc' => '2.0',
-            'id' => 1,
-            'method' => $method,
-            'params' => $params,
-        ], [
-            'Authorization' => 'Bearer '.$this->plainToken,
-        ]);
+        $this->assertArrayHasKey('planning_roles_completed', $payload['hermes']);
     }
 }

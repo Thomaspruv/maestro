@@ -112,7 +112,12 @@ class RecordStepOutputTool implements McpTool
             }
         }
 
+        $freshTask = $task->fresh();
+
         return [
+            'workflow_mode' => OrchestratorService::internalPipelineEnabled()
+                ? 'internal_pipeline'
+                : 'hermes_only',
             'pipeline_step' => [
                 'id' => $step->id,
                 'role' => $step->role,
@@ -120,9 +125,9 @@ class RecordStepOutputTool implements McpTool
                 'cost' => (float) $step->cost,
             ],
             'task' => [
-                'id' => $task->id,
-                'status' => $task->fresh()->status->value,
-                'current_role' => $task->fresh()->current_role,
+                'id' => $freshTask->id,
+                'status' => $freshTask->status->value,
+                'current_role' => $freshTask->current_role,
             ],
         ];
     }

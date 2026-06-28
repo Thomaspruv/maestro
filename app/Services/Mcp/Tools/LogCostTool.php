@@ -70,7 +70,9 @@ class LogCostTool implements McpTool
         ]);
 
         if ($task !== null) {
-            $task->increment('actual_cost', (float) $arguments['cost']);
+            $task->update([
+                'actual_cost' => (float) ($task->actual_cost ?? 0) + (float) $arguments['cost'],
+            ]);
         }
 
         return [

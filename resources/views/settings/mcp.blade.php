@@ -13,7 +13,10 @@
             <h2 class="mb-1 text-sm font-semibold text-text-primary">Serveur MCP</h2>
             <p class="mb-3 text-[11px] text-text-muted">URL à configurer dans Hermes ou comme connecteur custom.</p>
             <p class="mb-3 text-[11px] text-text-muted">
-                Guide complet : <code class="text-text-primary">docs/MCP.md</code> (génération token, Hermes, Claude Code, dépannage).
+                <a href="{{ route('settings.mcp.docs') }}" class="text-maestro-accent hover:underline">
+                    Documentation API MCP
+                </a>
+                — guide complet, exemples curl, référence des tools.
             </p>
             <code class="block break-all rounded-md bg-bg-surface px-3 py-2 font-mono text-[11px] text-text-muted">{{ $mcpUrl }}</code>
         </div>

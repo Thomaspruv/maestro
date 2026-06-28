@@ -427,3 +427,61 @@
         height: calc(100vh - 120px);
     }
 }
+
+.mcp-docs-prose h1 {
+    @apply mb-4 text-lg font-semibold text-text-primary;
+}
+
+.mcp-docs-prose h2 {
+    @apply mb-3 mt-8 border-t border-maestro-border pt-6 text-base font-semibold text-text-primary;
+}
+
+.mcp-docs-prose h3 {
+    @apply mb-2 mt-5 text-sm font-semibold text-text-primary;
+}
+
+.mcp-docs-prose p {
+    @apply mb-3 text-text-muted;
+}
+
+.mcp-docs-prose ul,
+.mcp-docs-prose ol {
+    @apply mb-3 ml-5 list-disc space-y-1 text-text-muted;
+}
+
+.mcp-docs-prose table {
+    @apply mb-4 w-full border-collapse text-[12px];
+}
+
+.mcp-docs-prose th,
+.mcp-docs-prose td {
+    @apply border border-maestro-border px-2 py-1.5 text-left;
+}
+
+.mcp-docs-prose th {
+    @apply bg-bg-surface font-medium text-text-primary;
+}
+
+.mcp-docs-prose code {
+    @apply rounded bg-bg-surface px-1 py-0.5 font-mono text-[11px] text-text-primary;
+}
+
+.mcp-docs-prose pre {
+    @apply mb-4 overflow-x-auto rounded-md bg-bg-surface p-3 font-mono text-[11px] text-text-muted;
+}
+
+.mcp-docs-prose pre code {
+    @apply bg-transparent p-0;
+}
+
+.mcp-docs-prose blockquote {
+    @apply mb-3 border-l-2 border-maestro-accent pl-3 text-text-muted;
+}
+
+.mcp-docs-prose a {
+    @apply text-maestro-accent hover:underline;
+}
+
+.mcp-docs-prose hr {
+    @apply my-6 border-maestro-border;
+}
