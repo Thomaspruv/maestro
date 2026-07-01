@@ -3,10 +3,10 @@
 namespace App\Livewire;
 
 use App\Enums\TaskPriority;
-use App\Enums\TaskStatus;
 use App\Enums\TaskType;
 use App\Models\Project;
 use App\Models\Task;
+use App\Services\KanbanColumnResolver;
 use App\Services\OrchestratorService;
 use App\Services\PipelineHealthService;
 use App\Support\PipelineActivity;
@@ -53,7 +53,7 @@ class KanbanBoard extends Component
         $this->openTaskId = null;
     }
 
-    public function startTask(int $taskId, OrchestratorService $orchestrator): void
+    public function startTask(int $taskId, OrchestratorService $orchestrator, KanbanColumnResolver $resolver): void
     {
         $task = Task::query()
             ->where('project_id', $this->project->id)
@@ -62,10 +62,7 @@ class KanbanBoard extends Component
         $this->authorize('update', $task);
 
         if (OrchestratorService::internalPipelineEnabled()) {
-            $task->update([
-                'status' => TaskStatus::InProgress,
-                'current_role' => null,
-            ]);
+            $resolver->applyColumn($task, 'pm');
             $orchestrator->advance($task->fresh());
         } else {
             $orchestrator->handoffToHermes($task);
@@ -79,15 +76,15 @@ class KanbanBoard extends Component
         $task = Task::where('project_id', $this->project->id)->findOrFail($taskId);
         $this->authorize('update', $task);
 
-        $task->update(['status' => TaskStatus::from($status)]);
+        $task->update(['status' => $status]);
     }
 
     /**
      * @param  array<int, array{task_id: int, sort_order: int}>  $items
      */
-    public function updateColumnOrder(string $status, array $items): void
+    public function updateColumnOrder(string $column, array $items): void
     {
-        $this->syncKanbanColumns([$status => $items]);
+        $this->syncKanbanColumns([$column => $items]);
     }
 
     /**
@@ -95,16 +92,10 @@ class KanbanBoard extends Component
      *
      * @param  array<string, array<int, array{task_id: int, sort_order: int}>>  $columns
      */
-    public function syncKanbanColumns(array $columns): void
+    public function syncKanbanColumns(array $columns, KanbanColumnResolver $resolver): void
     {
-        foreach ($columns as $status => $items) {
-            if (! is_array($items)) {
-                continue;
-            }
-
-            $newStatus = TaskStatus::tryFrom($status);
-
-            if ($newStatus === null) {
+        foreach ($columns as $columnSlug => $items) {
+            if (! is_array($items) || ! $resolver->isValidColumn($columnSlug)) {
                 continue;
             }
 
@@ -121,29 +112,21 @@ class KanbanBoard extends Component
 
                 $this->authorize('update', $task);
 
+                $currentColumn = $resolver->resolveColumn($task);
+
+                if ($currentColumn !== $columnSlug) {
+                    $resolver->applyColumn($task, $columnSlug);
+                    $task->refresh();
+                }
+
                 $task->update([
-                    'status' => $newStatus,
                     'sort_order' => (int) ($item['sort_order'] ?? 0),
-                    'current_role' => $this->resolveCurrentAgentForColumn($newStatus, $task),
                 ]);
             }
         }
     }
 
-    private function resolveCurrentAgentForColumn(TaskStatus $newStatus, Task $task): ?string
-    {
-        if ($newStatus === TaskStatus::WaitingHermes) {
-            return 'hermes';
-        }
-
-        if ($task->current_role === 'hermes') {
-            return null;
-        }
-
-        return $task->current_role;
-    }
-
-    public function render()
+    public function render(KanbanColumnResolver $resolver)
     {
         $query = $this->project->tasks()
             ->with(['pipelineSteps', 'gates'])
@@ -160,19 +143,20 @@ class KanbanBoard extends Component
         }
 
         $tasks = $query->get();
+        $columns = $resolver->groupTasksByColumn($tasks);
+        $kanbanColumns = $resolver->columns();
 
-        $columns = [
-            'backlog' => $tasks->where('status', TaskStatus::Backlog)->merge($tasks->where('status', TaskStatus::Failed)),
-            'in_progress' => $tasks->where('status', TaskStatus::InProgress),
-            'waiting_hermes' => $tasks->where('status', TaskStatus::WaitingHermes),
-            'in_review' => $tasks->where('status', TaskStatus::InReview),
-            'done' => $tasks->where('status', TaskStatus::Done),
-        ];
+        $allProjectTasks = $this->project->tasks()->get();
+        $groupedAll = $resolver->groupTasksByColumn($allProjectTasks);
 
         $stats = [
-            'total' => $this->project->tasks()->count(),
-            'in_progress' => $this->project->tasks()->where('status', TaskStatus::InProgress)->count(),
-            'waiting_hermes' => $this->project->tasks()->where('status', TaskStatus::WaitingHermes)->count(),
+            'total' => $allProjectTasks->count(),
+            'backlog' => $groupedAll['backlog']->count(),
+            'dev' => $groupedAll['dev']->count(),
+            'in_pipeline' => collect($groupedAll)
+                ->except(['backlog', 'dev', 'done'])
+                ->flatten()
+                ->count(),
             'pending_gates' => $this->project->tasks()->whereHas('gates', fn ($q) => $q->where('status', 'pending'))->count(),
             'total_cost' => (float) $this->project->tasks()->sum('actual_cost'),
         ];
@@ -192,6 +176,7 @@ class KanbanBoard extends Component
 
         return view('livewire.kanban-board', [
             'columns' => $columns,
+            'kanbanColumns' => $kanbanColumns,
             'stats' => $stats,
             'taskTypes' => TaskType::cases(),
             'priorities' => TaskPriority::cases(),

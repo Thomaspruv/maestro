@@ -25,10 +25,11 @@
     </div>
 
     {{-- Statistiques --}}
-    <div class="mb-5 grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-5">
+    <div class="mb-5 grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-6">
         <x-ui.metric-card label="Tâches totales" :value="$stats['total']" />
-        <x-ui.metric-card label="En cours" :value="$stats['in_progress']" subColor="info" />
-        <x-ui.metric-card label="Hermes" :value="$stats['waiting_hermes']" subColor="info" />
+        <x-ui.metric-card label="Backlog" :value="$stats['backlog']" />
+        <x-ui.metric-card label="Pipeline" :value="$stats['in_pipeline']" subColor="info" />
+        <x-ui.metric-card label="Dev" :value="$stats['dev']" subColor="info" />
         <x-ui.metric-card label="Gates en attente" :value="$stats['pending_gates']" subColor="warning" />
         <x-ui.metric-card label="Coût réel" :value="'$'.number_format($stats['total_cost'], 2)" subColor="warning" />
     </div>
@@ -55,37 +56,32 @@
     </div>
 
     {{-- Colonnes Kanban --}}
-    @php
-        $columnLabels = [
-            'backlog' => ['label' => 'Backlog', 'icon' => '📥'],
-            'in_progress' => ['label' => 'En cours', 'icon' => '⚡'],
-            'waiting_hermes' => ['label' => 'Hermes', 'icon' => '💻', 'hint' => 'Prêt pour le cron MCP'],
-            'in_review' => ['label' => 'En revue', 'icon' => '👀'],
-            'done' => ['label' => 'Terminé', 'icon' => '✅'],
-        ];
-    @endphp
-
-    <div class="grid grid-cols-1 gap-3 md:grid-cols-3 xl:grid-cols-5">
-        @foreach($columnLabels as $status => $meta)
-            <div class="flex flex-col">
+    <div class="overflow-x-auto pb-2">
+        <div class="flex min-w-max gap-3">
+        @foreach($kanbanColumns as $column)
+            @php
+                $slug = $column['slug'];
+                $columnTasks = $columns[$slug] ?? collect();
+            @endphp
+            <div class="flex w-64 shrink-0 flex-col">
                 <div class="mb-2 px-1">
                     <div class="flex items-center gap-2">
-                        <span>{{ $meta['icon'] }}</span>
-                        <span class="text-[13px] font-medium text-maestro-text">{{ $meta['label'] }}</span>
-                        <span class="rounded bg-maestro-surface-2 px-1.5 py-0.5 text-[12px] text-maestro-subtle">{{ $columns[$status]->count() }}</span>
+                        <span>{{ $column['emoji'] }}</span>
+                        <span class="text-[13px] font-medium text-maestro-text">{{ $column['label'] }}</span>
+                        <span class="rounded bg-maestro-surface-2 px-1.5 py-0.5 text-[12px] text-maestro-subtle">{{ $columnTasks->count() }}</span>
                     </div>
-                    @if(! empty($meta['hint']))
-                        <p class="mt-0.5 text-[11px] text-maestro-subtle">{{ $meta['hint'] }}</p>
+                    @if(! empty($column['hint']))
+                        <p class="mt-0.5 text-[11px] text-maestro-subtle">{{ $column['hint'] }}</p>
                     @endif
                 </div>
 
                 <div
                     wire:ignore
                     class="kanban-column min-h-[400px] flex-1 space-y-2 rounded-lg border bg-maestro-surface p-2"
-                    data-status="{{ $status }}"
-                    id="kanban-{{ $status }}"
+                    data-status="{{ $slug }}"
+                    id="kanban-{{ $slug }}"
                 >
-                    @forelse($columns[$status] as $task)
+                    @forelse($columnTasks as $task)
                         <div data-task-id="{{ $task->id }}" class="kanban-task-wrapper space-y-1.5">
                             <x-maestro.task-card
                                 :task="$task"
@@ -95,7 +91,7 @@
                                 class="cursor-pointer transition-colors hover:border-primary/40"
                             />
 
-                            @if($task->status->value === 'backlog')
+                            @if($slug === 'backlog')
                                 <button
                                     type="button"
                                     wire:click.stop="startTask({{ $task->id }})"
@@ -103,7 +99,7 @@
                                 >
                                     ▶ {{ config('maestro.internal_pipeline_enabled') ? 'Démarrer' : 'Envoyer à Hermes' }}
                                 </button>
-                            @elseif($task->status->value === 'waiting_hermes')
+                            @elseif($slug === 'dev')
                                 <button
                                     type="button"
                                     wire:click.stop="openTask({{ $task->id }})"
@@ -127,6 +123,7 @@
                 </div>
             </div>
         @endforeach
+        </div>
     </div>
 
     {{-- Panneau progression (depuis le Kanban) --}}

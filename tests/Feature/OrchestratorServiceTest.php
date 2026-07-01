@@ -70,7 +70,7 @@ class OrchestratorServiceTest extends TestCase
         $orchestrator = app(OrchestratorService::class);
         $pipeline = $orchestrator->getPipelineForTask($task);
 
-        $this->assertSame('tech_lead', $pipeline[0]);
+        $this->assertSame('test_lead', $pipeline[0]);
         $this->assertNotContains('pm', $pipeline);
     }
 
@@ -115,7 +115,7 @@ class OrchestratorServiceTest extends TestCase
 
         $next = $orchestrator->resolveNextRole($task->fresh());
 
-        $this->assertSame('tech_lead', $next);
+        $this->assertSame('test_lead', $next);
     }
 
     public function test_approving_gate_dispatches_next_agent_instead_of_recreating_gate(): void
@@ -148,12 +148,7 @@ class OrchestratorServiceTest extends TestCase
         ]);
         $this->assertDatabaseHas('pipeline_steps', [
             'task_id' => $task->id,
-            'role' => 'ux',
-            'status' => PipelineStepStatus::Pending->value,
-        ]);
-        $this->assertDatabaseHas('pipeline_steps', [
-            'task_id' => $task->id,
-            'role' => 'tech_lead',
+            'role' => 'test_lead',
             'status' => PipelineStepStatus::Pending->value,
         ]);
     }

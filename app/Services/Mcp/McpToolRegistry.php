@@ -9,9 +9,11 @@ use App\Services\Mcp\Tools\ClaimHermesTaskTool;
 use App\Services\Mcp\Tools\CreateTaskTool;
 use App\Services\Mcp\Tools\GetTaskTool;
 use App\Services\Mcp\Tools\ListHermesTasksTool;
+use App\Services\Mcp\Tools\ListKanbanBoardTool;
 use App\Services\Mcp\Tools\ListProjectsTool;
 use App\Services\Mcp\Tools\ListTasksTool;
 use App\Services\Mcp\Tools\LogCostTool;
+use App\Services\Mcp\Tools\MoveTaskTool;
 use App\Services\Mcp\Tools\RequestGateTool;
 use App\Services\Mcp\Tools\UpdateTaskStatusTool;
 
@@ -25,10 +27,12 @@ class McpToolRegistry
     public function __construct(
         ListProjectsTool $listProjects,
         ListTasksTool $listTasks,
+        ListKanbanBoardTool $listKanbanBoard,
         ListHermesTasksTool $listHermesTasks,
         GetTaskTool $getTask,
         CreateTaskTool $createTask,
         UpdateTaskStatusTool $updateTaskStatus,
+        MoveTaskTool $moveTask,
         RecordStepOutputTool $recordStepOutput,
         ClaimHermesTaskTool $claimHermesTask,
         RequestGateTool $requestGate,
@@ -37,10 +41,12 @@ class McpToolRegistry
         $this->tools = collect([
             $listProjects,
             $listTasks,
+            $listKanbanBoard,
             $listHermesTasks,
             $getTask,
             $createTask,
             $updateTaskStatus,
+            $moveTask,
             $recordStepOutput,
             $claimHermesTask,
             $requestGate,

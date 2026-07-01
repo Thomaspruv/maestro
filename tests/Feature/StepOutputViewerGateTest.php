@@ -6,7 +6,7 @@ use App\Enums\PipelineStepStatus;
 use App\Enums\GateStatus;
 use App\Enums\GateType;
 use App\Enums\TaskStatus;
-use App\Jobs\ParallelPipelineStepGroupJob;
+use App\Jobs\RunPipelineStepJob;
 use App\Livewire\StepOutputViewer;
 use App\Livewire\TaskPipeline;
 use App\Models\PipelineStep;
@@ -59,10 +59,10 @@ class StepOutputViewerGateTest extends TestCase
         $this->assertSame(GateStatus::Approved, $gate->fresh()->status);
         $this->assertDatabaseHas('pipeline_steps', [
             'task_id' => $task->id,
-            'role' => 'ux',
+            'role' => 'test_lead',
             'status' => PipelineStepStatus::Pending->value,
         ]);
-        Queue::assertPushed(ParallelPipelineStepGroupJob::class);
+        Queue::assertPushed(RunPipelineStepJob::class);
     }
 
     public function test_approve_gate_from_task_pipeline(): void
@@ -91,6 +91,6 @@ class StepOutputViewerGateTest extends TestCase
             ->assertHasNoErrors();
 
         $this->assertSame(GateStatus::Approved, $gate->fresh()->status);
-        Queue::assertPushed(ParallelPipelineStepGroupJob::class);
+        Queue::assertPushed(RunPipelineStepJob::class);
     }
 }

@@ -7,9 +7,11 @@ enum PipelineRoleSlug: string
     case Pm = 'pm';
     case Ux = 'ux';
     case TechLead = 'tech_lead';
+    case TestLead = 'test_lead';
     case Security = 'security';
     case Dev = 'dev';
     case Qa = 'qa';
+    case QaUx = 'qa_ux';
     case PrExpert = 'pr_expert';
     case Doc = 'doc';
 

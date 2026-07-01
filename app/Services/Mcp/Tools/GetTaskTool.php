@@ -4,6 +4,7 @@ namespace App\Services\Mcp\Tools;
 
 use App\Enums\PipelineStepStatus;
 use App\Models\User;
+use App\Services\KanbanColumnResolver;
 use App\Services\PipelineOutputCondenser;
 use App\Services\Mcp\Contracts\McpTool;
 use App\Services\Mcp\HermesTaskPresenter;
@@ -17,6 +18,7 @@ class GetTaskTool implements McpTool
     public function __construct(
         private readonly PipelineOutputCondenser $condenser,
         private readonly HermesTaskPresenter $hermesPresenter,
+        private readonly KanbanColumnResolver $resolver,
     ) {}
 
     public function name(): string
@@ -77,6 +79,7 @@ class GetTaskTool implements McpTool
                 'status' => $task->status->value,
                 'mode' => $task->mode->value,
                 'current_role' => $task->current_role,
+                'kanban_column' => $this->resolver->resolveColumn($task),
                 'github_branch' => $task->github_branch,
                 'github_pr_url' => $task->github_pr_url,
                 'estimated_cost' => (float) $task->estimated_cost,

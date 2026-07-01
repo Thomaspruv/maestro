@@ -6,7 +6,7 @@ use App\Enums\PipelineStepStatus;
 use App\Enums\GateStatus;
 use App\Enums\GateType;
 use App\Enums\TaskStatus;
-use App\Jobs\ParallelPipelineStepGroupJob;
+use App\Jobs\RunPipelineStepJob;
 use App\Models\PipelineStep;
 use App\Models\Gate;
 use App\Models\Project;
@@ -50,7 +50,7 @@ class GateControllerTest extends TestCase
 
         $response->assertRedirect();
         $this->assertSame(GateStatus::Approved, $gate->fresh()->status);
-        Queue::assertPushed(ParallelPipelineStepGroupJob::class);
+        Queue::assertPushed(RunPipelineStepJob::class);
     }
 
     public function test_gate_reject_requires_feedback(): void

@@ -64,7 +64,9 @@ class McpServerTest extends TestCase
         $this->assertContains('list_hermes_tasks', $names);
         $this->assertContains('claim_hermes_task', $names);
         $this->assertContains('add_agent_output', $names);
-        $this->assertCount(11, $names);
+        $this->assertContains('list_kanban_board', $names);
+        $this->assertContains('move_task', $names);
+        $this->assertCount(13, $names);
     }
 
     public function test_invalid_token_returns_401(): void
@@ -178,7 +180,7 @@ class McpServerTest extends TestCase
             'current_role' => 'hermes',
         ]);
 
-        foreach (['pm', 'ux', 'tech_lead', 'security'] as $agent) {
+        foreach (['pm', 'test_lead', 'ux', 'security'] as $agent) {
             PipelineStep::factory()->create([
                 'task_id' => $task->id,
                 'role' => $agent,
@@ -224,7 +226,7 @@ class McpServerTest extends TestCase
             'current_role' => 'hermes',
         ]);
 
-        foreach (['pm', 'ux', 'tech_lead', 'security'] as $agent) {
+        foreach (['pm', 'test_lead', 'ux', 'security'] as $agent) {
             PipelineStep::factory()->create([
                 'task_id' => $task->id,
                 'role' => $agent,

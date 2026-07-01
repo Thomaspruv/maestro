@@ -17,7 +17,7 @@ class PipelineRoleTest extends TestCase
     {
         $user = User::factory()->create();
 
-        $this->assertCount(9, $user->pipelineRoles);
+        $this->assertCount(11, $user->pipelineRoles);
         $this->assertTrue($user->pipelineRoles()->where('slug', 'pm')->first()->is_builtin);
     }
 
@@ -58,7 +58,7 @@ class PipelineRoleTest extends TestCase
         $project = Project::factory()->create(['user_id' => $user->id]);
         app(ProjectRoleSyncService::class)->copyUserRolesToProject($user, $project);
 
-        $this->assertCount(10, $project->roles);
+        $this->assertCount(12, $project->roles);
         $this->assertTrue($project->roles()->where('role', 'legal_reviewer')->exists());
     }
 }

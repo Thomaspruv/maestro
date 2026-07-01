@@ -15,7 +15,7 @@ class KanbanBoardTest extends TestCase
 {
     use RefreshDatabase;
 
-    public function test_waiting_hermes_task_appears_in_hermes_column(): void
+    public function test_waiting_hermes_task_appears_in_dev_column(): void
     {
         $user = User::factory()->create();
         $project = Project::factory()->create(['user_id' => $user->id]);
@@ -29,7 +29,7 @@ class KanbanBoardTest extends TestCase
 
         Task::factory()->create([
             'project_id' => $project->id,
-            'title' => 'Tâche agents en cours',
+            'title' => 'Tâche PM en cours',
             'status' => TaskStatus::InProgress,
             'current_role' => 'pm',
         ]);
@@ -43,13 +43,15 @@ class KanbanBoardTest extends TestCase
         Livewire::actingAs($user)
             ->test(KanbanBoard::class, ['project' => $project])
             ->assertSee('Tâche en attente Hermes')
+            ->assertSee('Tâche PM en cours')
             ->assertSee('En attente d\'Hermes')
-            ->assertSee('Prêt pour le cron MCP')
+            ->assertSee('Prêt pour Hermes / cron MCP')
             ->assertSee('Voir les specs')
-            ->assertSee('Envoyer à Hermes');
+            ->assertSee('Envoyer à Hermes')
+            ->assertSee('Product Manager');
     }
 
-    public function test_sync_kanban_columns_persists_move_to_hermes(): void
+    public function test_sync_kanban_columns_persists_move_to_dev(): void
     {
         $user = User::factory()->create();
         $project = Project::factory()->create(['user_id' => $user->id]);
@@ -73,11 +75,15 @@ class KanbanBoardTest extends TestCase
                 'backlog' => [
                     ['task_id' => Task::where('status', TaskStatus::Backlog)->first()->id, 'sort_order' => 0],
                 ],
-                'in_progress' => [],
-                'waiting_hermes' => [
+                'pm' => [],
+                'test_lead' => [],
+                'ux' => [],
+                'dev' => [
                     ['task_id' => $task->id, 'sort_order' => 0],
                 ],
-                'in_review' => [],
+                'qa' => [],
+                'qa_ux' => [],
+                'security' => [],
                 'done' => [],
             ]);
 
@@ -88,7 +94,7 @@ class KanbanBoardTest extends TestCase
         ]);
     }
 
-    public function test_sync_kanban_columns_clears_hermes_agent_when_leaving_column(): void
+    public function test_sync_kanban_columns_clears_hermes_agent_when_leaving_dev_column(): void
     {
         $user = User::factory()->create();
         $project = Project::factory()->create(['user_id' => $user->id]);
@@ -105,9 +111,13 @@ class KanbanBoardTest extends TestCase
                 'backlog' => [
                     ['task_id' => $task->id, 'sort_order' => 0],
                 ],
-                'in_progress' => [],
-                'waiting_hermes' => [],
-                'in_review' => [],
+                'pm' => [],
+                'test_lead' => [],
+                'ux' => [],
+                'dev' => [],
+                'qa' => [],
+                'qa_ux' => [],
+                'security' => [],
                 'done' => [],
             ]);
 

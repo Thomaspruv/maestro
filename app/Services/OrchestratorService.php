@@ -238,7 +238,7 @@ class OrchestratorService
         }
 
         return match ($agent) {
-            'ux', 'tech_lead' => $gateConfig['gate_specs'] ?? true,
+            'ux', 'test_lead', 'tech_lead' => $gateConfig['gate_specs'] ?? true,
             'security' => $gateConfig['gate_tech'] ?? true,
             'doc' => $gateConfig['gate_merge'] ?? true,
             default => false,
@@ -268,7 +268,7 @@ class OrchestratorService
     {
         return config("maestro.default_pipelines.{$type}")
             ?? config('maestro.default_pipelines.feature', [
-                'pm', 'ux', 'tech_lead', 'security', 'qa', 'pr_expert', 'doc',
+                'pm', 'test_lead', 'ux', 'security', 'qa', 'qa_ux', 'pr_expert', 'doc',
             ]);
     }
 
@@ -391,7 +391,7 @@ class OrchestratorService
         $agent = is_array($nextAgent) ? $nextAgent[0] : $nextAgent;
 
         return match ($agent) {
-            'ux', 'tech_lead' => GateType::SpecsReview,
+            'ux', 'test_lead', 'tech_lead' => GateType::SpecsReview,
             'security' => GateType::TechReview,
             'doc' => GateType::MergeReview,
             default => GateType::SpecsReview,

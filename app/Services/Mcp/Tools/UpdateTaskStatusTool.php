@@ -19,7 +19,7 @@ class UpdateTaskStatusTool implements McpTool
 
     public function description(): string
     {
-        return 'Met à jour le statut d\'une tâche.';
+        return 'Met à jour le statut d\'une tâche (legacy — préférer move_task pour le Kanban).';
     }
 
     public function inputSchema(): array

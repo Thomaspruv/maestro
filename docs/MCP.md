@@ -165,7 +165,7 @@ curl -s {{APP_URL}}/.well-known/oauth-protected-resource
 | Méthode | Description |
 |---------|-------------|
 | `initialize` | Handshake, retourne les capacités du serveur |
-| `tools/list` | Liste les 11 tools disponibles |
+| `tools/list` | Liste les 13 tools disponibles |
 | `tools/call` | Exécute un tool par son nom |
 
 ### Format `tools/call`
@@ -202,16 +202,74 @@ La réponse utile est dans **`result.content[0].text`** (string JSON à parser).
 | Tool | Description |
 |------|-------------|
 | `list_projects` | Projets actifs de l'utilisateur |
-| `list_tasks` | Tâches d'un projet (`project_id`, filtre `status` optionnel) |
+| `list_tasks` | Tâches d'un projet (`project_id`, filtres `status` ou `kanban_column` optionnels) |
+| `list_kanban_board` | **Kanban** — board complet groupé par colonne rôle |
+| `move_task` | **Kanban** — déplace une tâche vers une colonne (`kanban_column`) |
 | `list_hermes_tasks` | **Cron Hermes** — toutes les tâches dev en attente, tous projets |
 | `claim_hermes_task` | Réserve une tâche pour Hermes (anti-doublon cron) |
-| `get_task` | Détail complet + outputs des étapes + bloc `hermes` |
+| `get_task` | Détail complet + outputs des étapes + bloc `hermes` + `kanban_column` |
 | `create_task` | Crée une tâche dans le backlog |
-| `update_task_status` | Change le statut d'une tâche |
+| `update_task_status` | Change le statut d'une tâche (**legacy** — préférer `move_task` pour le Kanban) |
 | `record_step_output` | Enregistre l'output d'une étape (ex. `dev` pour Hermes) |
 | `request_gate` | Demande une validation humaine |
 | `log_cost` | Enregistre un coût |
 | `add_agent_output` | **Alias legacy** de `record_step_output` |
+
+### Colonnes Kanban
+
+Ordre d'affichage : `backlog` → `pm` → `test_lead` → `ux` → `dev` → `qa` → `qa_ux` → `security` → `done`
+
+| Slug colonne | Label UI | Règle d'appartenance |
+|--------------|----------|----------------------|
+| `backlog` | Backlog | `status` = `backlog` ou `failed` |
+| `pm` | Product Manager | `status` = `in_progress` + `current_role` = `pm` |
+| `test_lead` | Test Lead | `in_progress` + `current_role` = `test_lead` |
+| `ux` | UX Designer | `in_progress` + `current_role` = `ux` |
+| `dev` | Dev | `waiting_hermes` **ou** `in_progress` + `current_role` in (`dev`, `hermes`) |
+| `qa` | QA | `in_progress` + `current_role` = `qa` |
+| `qa_ux` | QA UX | `in_progress` + `current_role` = `qa_ux` |
+| `security` | Security | `in_progress` + `current_role` = `security` |
+| `done` | Terminé | `status` = `done` |
+
+Compatibilité données existantes :
+- `in_review` → colonne `qa`
+- `current_role` = `tech_lead` → colonne `test_lead`
+
+### `list_kanban_board`
+
+**Arguments :**
+
+```json
+{ "project_id": 1 }
+```
+
+**Réponse exemple :**
+
+```json
+{
+  "columns": [
+    { "slug": "backlog", "label": "Backlog", "tasks": [] },
+    { "slug": "pm", "label": "Product Manager", "tasks": [{ "id": 1, "kanban_column": "pm", "status": "in_progress", "current_role": "pm" }] },
+    { "slug": "dev", "label": "Dev", "tasks": [{ "id": 2, "kanban_column": "dev", "status": "waiting_hermes", "current_role": "hermes" }] }
+  ],
+  "column_order": ["backlog", "pm", "test_lead", "ux", "dev", "qa", "qa_ux", "security", "done"]
+}
+```
+
+### `move_task`
+
+**Arguments :**
+
+```json
+{
+  "task_id": 42,
+  "kanban_column": "qa"
+}
+```
+
+**Effet :** met à jour `status` et `current_role` selon la colonne cible (ex. `dev` → `waiting_hermes` + `current_role: hermes`).
+
+**Réponse :** `task` avec `status`, `current_role`, `kanban_column` résolu.
 
 ### `list_hermes_tasks`
 
@@ -334,28 +392,29 @@ En mode **internal_pipeline** (`MAESTRO_INTERNAL_PIPELINE=true`) : Maestro relan
 
 **Statuts valides :** `backlog`, `in_progress`, `waiting_hermes`, `in_review`, `done`, `failed`
 
+> **Legacy :** pour déplacer une tâche sur le Kanban, préférer `move_task` qui met à jour `status` et `current_role` de façon cohérente.
+
 ---
 
 ## 8. Cycle de vie d'une tâche (hermes_only)
 
 ```
 backlog
-  → [Kanban : « Envoyer à Hermes »]
-  → waiting_hermes          ← Hermes intervient ici
+  → [Kanban : « Envoyer à Hermes » ou move_task(kanban_column=dev)]
+  → colonne dev (waiting_hermes)     ← Hermes intervient ici
   → [Hermes : claim → dev via record_step_output]
-  → done
+  → done (colonne Terminé)
 ```
 
-| Statut | Qui agit |
-|--------|----------|
-| `backlog` | Pas encore envoyée à Hermes |
-| `waiting_hermes` | **Prête pour Hermes** — colonne Hermes du Kanban |
-| `in_progress` | Hermes en cours de dev (`current_role: hermes`) |
-| `in_review` | En revue |
-| `done` | Terminée |
-| `failed` | Échec |
+| Colonne Kanban | Statut / rôle | Qui agit |
+|----------------|---------------|----------|
+| `backlog` | `backlog` ou `failed` | Pas encore lancée |
+| `pm` … `security` | `in_progress` + `current_role` | Pipeline interne (si activée) ou déplacement manuel |
+| `dev` | `waiting_hermes` (+ `current_role: hermes`) | **Prête pour Hermes** |
+| `dev` (en cours) | `in_progress` + `current_role: hermes` | Hermes en train d'implémenter |
+| `done` | `done` | Terminée |
 
-Hermes surveille `waiting_hermes` via **`list_hermes_tasks`**, pas via `list_tasks` projet par projet.
+Hermes surveille la colonne **dev** (`waiting_hermes`) via **`list_hermes_tasks`**, pas via `list_tasks` projet par projet. Pour une vue board complète, utiliser **`list_kanban_board`**.
 
 ---
 
@@ -363,7 +422,7 @@ Hermes surveille `waiting_hermes` via **`list_hermes_tasks`**, pas via `list_tas
 
 Par défaut, Maestro utilise le flux **hermes_only** : pas de PM/UX/QA automatique.
 
-Pour réactiver la pipeline interne (PM → UX → Tech Lead → Security → QA → Doc) :
+Pour réactiver la pipeline interne (PM → Test Lead → UX → Security → QA → QA UX → Doc) :
 
 ```env
 MAESTRO_INTERNAL_PIPELINE=true
@@ -371,8 +430,9 @@ MAESTRO_INTERNAL_PIPELINE=true
 
 Dans ce mode :
 
+- Le Kanban affiche les colonnes par rôle : Backlog → PM → Test Lead → UX → Dev → QA → QA UX → Security → Terminé
 - Le Kanban affiche « Démarrer » au lieu de « Envoyer à Hermes »
-- `hermes.specs_preview` contient les outputs PM/UX/Tech Lead
+- `hermes.specs_preview` contient les outputs PM/UX/Test Lead
 - `planning_roles_completed` est présent dans les réponses Hermes
 - `record_step_output(dev)` relance QA → PR Expert → Doc au lieu de marquer `done`
 
